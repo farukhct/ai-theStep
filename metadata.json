@@ -1,0 +1,6 @@
+{
+  "name": "AURA Garments & Business Suite",
+  "description": "Modern minimalist garments e-commerce and full-featured business management system with bKash/Nagad checkout, multi-factor auth, live inventory ledger, and profit/loss analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

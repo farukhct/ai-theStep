@@ -1,0 +1,194 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with authentication and role-based permissions",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "admin", "superadmin", "inventory_manager", "order_manager", "accountant"] },
+        "mfaEnabled": { "type": "boolean" },
+        "mfaMethod": { "type": "string", "enum": ["sms", "email", "totp", "none"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Trusted administrative user lookup",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "addedAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Garments product catalog item with multi-variant stock management",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 200 },
+        "sku": { "type": "string", "maxLength": 100 },
+        "slug": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string" },
+        "subcategory": { "type": "string" },
+        "brand": { "type": "string" },
+        "description": { "type": "string", "maxLength": 5000 },
+        "images": { "type": "array" },
+        "regularPrice": { "type": "number" },
+        "discountedPrice": { "type": "number" },
+        "availableQuantity": { "type": "number" },
+        "minimumStockLevel": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "draft", "archived"] },
+        "isFeatured": { "type": "boolean" },
+        "isNewArrival": { "type": "boolean" },
+        "isBestSeller": { "type": "boolean" },
+        "fabric": { "type": "string" },
+        "material": { "type": "string" },
+        "weight": { "type": "string" },
+        "variants": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "sku", "category", "regularPrice", "status"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase transaction record with payment and fulfillment tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "contactNumber": { "type": "string" },
+        "email": { "type": "string" },
+        "shippingAddress": { "type": "object" },
+        "billingAddress": { "type": "object" },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "shippingFee": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["bkash", "nagad", "sonali", "card", "bank_transfer", "cod"] },
+        "paymentStatus": { "type": "string", "enum": ["pending", "processing", "paid", "failed", "refunded"] },
+        "orderStatus": { "type": "string", "enum": ["pending_payment", "paid", "confirmed", "processing", "packed", "shipped", "delivered", "cancelled", "returned"] },
+        "transactionId": { "type": "string" },
+        "trackingNumber": { "type": "string" },
+        "orderDate": { "type": "string" },
+        "remarks": { "type": "string" },
+        "statusHistory": { "type": "array" }
+      },
+      "required": ["id", "customerName", "contactNumber", "items", "grandTotal", "paymentMethod", "orderStatus"]
+    },
+    "InventoryTransaction": {
+      "title": "InventoryTransaction",
+      "description": "Traceable stock ledger movement record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "variantSku": { "type": "string" },
+        "transactionType": { "type": "string", "enum": ["opening_stock", "purchase", "sales", "sales_return", "purchase_return", "stock_adjustment", "damaged_stock", "cancellation"] },
+        "quantityIn": { "type": "number" },
+        "quantityOut": { "type": "number" },
+        "previousQuantity": { "type": "number" },
+        "newQuantity": { "type": "number" },
+        "referenceNumber": { "type": "string" },
+        "remarks": { "type": "string" },
+        "transactionDate": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "productId", "transactionType", "transactionDate"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Garments fabric and manufacturer vendor details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "email": { "type": "string" },
+        "companyName": { "type": "string" },
+        "address": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "name", "phoneNumber"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Operating and administrative business expenses",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "referenceNumber": { "type": "string" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["id", "category", "amount", "date"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Security and compliance audit trail entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "entity": { "type": "string" },
+        "entityId": { "type": "string" },
+        "details": { "type": "string" },
+        "performedBy": { "type": "string" },
+        "performedByName": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile with role and settings"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Admins registry for fast rule validation"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Garments inventory product catalog"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Order records and payment status"
+    },
+    "/inventory_transactions/{txId}": {
+      "schema": "InventoryTransaction",
+      "description": "Traceable inventory ledger log"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Supplier directories"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Business expense entries for profit and loss calculations"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Audit trail log records for compliance"
+    }
+  }
+}

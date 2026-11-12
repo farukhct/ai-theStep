@@ -1,0 +1,1317 @@
+# MASTER DEVELOPMENT PROMPT
+## Professional Garments E-Commerce & Business Management System
+
+### 1. Your Role
+
+Act as a Senior Full-Stack Software Architect, Senior React.js Developer, Node.js Backend Developer, PostgreSQL Database Architect, UI/UX Designer, E-Commerce Specialist, and Application Security Engineer.
+
+Your task is to design, develop, test, and deploy a complete, production-ready garments e-commerce website with an integrated inventory, accounting, sales, purchase, and profit/loss management system.
+
+The application must have an attractive, modern, professional, responsive, user-friendly interface.
+
+**Project type:** Full-featured online garments store and business management platform.
+
+**Target market:** Bangladesh.
+
+**Currency:** Bangladeshi Taka (BDT / ৳).
+
+**Languages:** English, with an option for Bangla.
+
+### 2. Technology Stack
+
+Use the following technologies:
+
+**Frontend**
+- HTML5
+- CSS3
+- JavaScript / TypeScript
+- React.js
+- Next.js (recommended for React-based storefront rendering and SEO)
+- Tailwind CSS
+- Modern UI component library
+- React Hook Form
+- Zod validation
+- TanStack Query
+- Recharts for dashboard analytics
+
+**Backend**
+- Node.js (current supported LTS version)
+- Express.js or NestJS
+- RESTful API architecture
+- TypeScript
+- JWT or secure server-side session authentication
+- Role-Based Access Control (RBAC)
+
+**Database**
+- PostgreSQL
+- Prisma ORM or another reliable PostgreSQL ORM
+- Database migrations
+- Proper primary keys, foreign keys, constraints, indexes, and relationships
+- Database transaction management
+
+**Additional Technologies**
+- Redis for caching, rate limiting, and background jobs where appropriate
+- Cloud-based image storage
+- SMTP or transactional email service
+- SMS/OTP provider
+- Payment gateway APIs
+- Docker
+- Git and GitHub
+- Automated testing and CI/CD
+
+Use currently supported, stable library versions and lock all dependencies. Avoid obsolete or abandoned packages.
+
+### 3. Website Design and UI/UX Requirements
+
+Use https://offer.alibaba.com/ as a design and layout reference.
+
+Study its general e-commerce experience, especially:
+- Professional product discovery.
+- Prominent search functionality.
+- Product category navigation.
+- Featured product sections.
+- Attractive promotional banners.
+- Product cards and image galleries.
+- Shopping cart and account navigation.
+- Clear product information.
+- Trust and security indicators.
+
+Adapt these ideas to a modern retail garments store. Do not copy Alibaba's branding, logos, proprietary assets, or exact design.
+
+The website should have:
+
+- Modern and attractive homepage.
+- Professional header and navigation menu.
+- Responsive mega-menu for product categories.
+- Prominent product search.
+- Attractive promotional slider.
+- New arrivals section.
+- Best-selling products section.
+- Featured products.
+- Special offers and discount sections.
+- Category-based product browsing.
+- Product recommendation section.
+- Customer reviews and ratings.
+- Professional footer.
+- Mobile-friendly navigation.
+- Light and dark theme support where appropriate.
+
+Design principles:
+- Clean and consistent layout.
+- Modern typography.
+- High-quality product photography.
+- Attractive product cards.
+- Smooth transitions and animations.
+- Proper spacing and visual hierarchy.
+- Responsive layouts for desktop, tablet, and mobile.
+- Accessible forms and navigation.
+- Fast page loading.
+
+### 4. Product Categories and Management
+
+The system must support garments and clothing products, including:
+
+1. T-Shirts
+2. Shirts
+3. Trousers
+4. Pants
+5. Jeans
+6. Jackets
+7. Shorts
+8. Undergarments
+9. Hoodies
+10. Sweaters
+11. Formal Wear
+12. Casual Wear
+13. Sportswear
+14. Kids' Clothing
+15. Women's Clothing
+16. Men's Clothing
+17. Accessories
+18. Other Clothing Products
+
+The administrator must be able to create, edit, update, deactivate, and delete categories.
+
+Allow unlimited product categories and subcategories.
+
+### 5. Product Management System
+
+Develop a comprehensive product management module.
+
+Each product should support:
+
+- Product ID.
+- Product Name.
+- Product SKU.
+- Product Slug.
+- Category.
+- Subcategory.
+- Brand.
+- Product Description.
+- Product Images.
+- Additional Product Images.
+- Size.
+- Colour.
+- Fabric.
+- Material.
+- Product Weight.
+- Product Purchase Price.
+- Regular Selling Price.
+- Discounted Selling Price.
+- Available Quantity.
+- Minimum Stock Level.
+- Product Status.
+- Featured Product Status.
+- New Arrival Status.
+- Best Seller Status.
+- Creation Date.
+- Last Updated Date.
+
+**Product Variant Management**
+
+Garments often have different sizes and colours.
+
+Therefore, implement product variants.
+
+Example:
+
+Product: Premium Cotton T-Shirt
+
+| Size | Colour | SKU | Quantity |
+|---|---|---|---:|
+| M | Black | TSH-M-BLK | 20 |
+| L | Black | TSH-L-BLK | 15 |
+| XL | Black | TSH-XL-BLK | 10 |
+| M | White | TSH-M-WHT | 12 |
+| L | White | TSH-L-WHT | 18 |
+
+Each variant must maintain its own:
+- SKU.
+- Size.
+- Colour.
+- Purchase cost.
+- Selling price, where applicable.
+- Available stock.
+- Reserved stock.
+- Minimum stock alert.
+
+**Important:** Never treat different sizes and colours as the same stock item.
+
+Provide product bulk import and export using CSV and Excel-compatible files.
+
+### 6. Customer-Facing E-Commerce Website
+
+Create all the essential shopping functionalities.
+
+#### A. Homepage
+Display:
+- Main promotional banners.
+- Popular categories.
+- Featured products.
+- New arrivals.
+- Best-selling products.
+- Trending garments.
+- Discounted products.
+- Special collections.
+- Newsletter subscription.
+
+#### B. Shop Page
+Provide:
+- Product grid.
+- Product search.
+- Category filtering.
+- Subcategory filtering.
+- Price range filtering.
+- Size filtering.
+- Colour filtering.
+- Brand filtering.
+- Availability filtering.
+- Sorting by price.
+- Sorting by popularity.
+- Sorting by newest.
+- Sorting by customer ratings.
+
+#### C. Product Details Page
+
+Display:
+- Product name.
+- Product images with zoom.
+- Product description.
+- Regular price.
+- Discounted price.
+- Discount percentage.
+- Available sizes.
+- Available colours.
+- Size guide.
+- Product specifications.
+- Stock availability.
+- Quantity selector.
+- Add to Cart button.
+- Buy Now button.
+- Wishlist button.
+- Customer reviews.
+- Related products.
+
+Do not allow customers to purchase unavailable product variants.
+
+#### D. Shopping Cart
+
+Develop a fully functional shopping cart.
+
+Features:
+- Add products to cart.
+- Remove products.
+- Increase quantity.
+- Decrease quantity.
+- Change size.
+- Change colour.
+- Automatically calculate subtotal.
+- Apply discount coupons.
+- Calculate shipping charges.
+- Calculate the final payable amount.
+- Display available stock.
+- Persist the cart for logged-in customers.
+
+Allow customers to browse and add products to a cart before logging in.
+
+However, authentication and shipping/billing information must be completed before proceeding to payment.
+
+### 7. Customer Registration and Authentication
+
+Customers must register or log in before checkout and payment.
+
+Support:
+
+- Registration using email.
+- Registration using mobile phone number.
+- Login using email or mobile phone number.
+- Password authentication.
+- OTP-based phone verification.
+- Email verification.
+- Forgot password.
+- Secure password reset.
+- Logout.
+- Customer profile management.
+- Login session management.
+- Order history.
+- Wishlist.
+- Saved addresses.
+
+Bangladeshi mobile numbers must be validated properly.
+
+Do not store passwords in plain text.
+
+### 8. Shipping and Billing Address Management
+
+Before payment, require the customer to provide a valid shipping address and billing information.
+
+**Shipping Address Fields**
+
+- Customer Name.
+- Mobile Number.
+- Alternative Mobile Number.
+- Email Address.
+- Country.
+- Division.
+- District.
+- Upazila / Thana.
+- City / Area.
+- Postcode.
+- Detailed Address.
+- Delivery Instructions.
+
+**Billing Address Fields**
+
+- Billing Name.
+- Billing Mobile Number.
+- Billing Email.
+- Division.
+- District.
+- Upazila / Thana.
+- City / Area.
+- Postcode.
+- Detailed Address.
+
+Include:
+
+- Same as Shipping Address checkbox.
+- Add New Address.
+- Edit Address.
+- Delete Address.
+- Save Address for Future Orders.
+- Default Shipping Address.
+- Default Billing Address.
+
+Customers must review their addresses and order summary before proceeding to payment.
+
+### 9. Payment Gateway Integration – Bangladesh
+
+Develop a secure, modular payment gateway architecture.
+
+The application must support the following payment options.
+
+**A. bKash**
+
+Implement an approved bKash merchant payment integration or a supported payment gateway integration.
+
+**B. Nagad**
+
+Implement an approved Nagad merchant payment integration or a supported payment gateway integration.
+
+**C. Sonali Bank**
+
+Support Sonali Bank payment collection through its Sonali Payment Gateway (SPG), subject to merchant onboarding and API access.
+
+**D. Other Banking Channels**
+
+Allow future integration with:
+- Visa.
+- Mastercard.
+- Debit Cards.
+- Credit Cards.
+- Internet Banking.
+- Other supported banking channels.
+
+**E. Manual Bank Transfer**
+
+Provide an optional manual bank transfer method.
+
+Allow the administrator to configure:
+- Bank Name.
+- Account Name.
+- Account Number.
+- Branch Name.
+- Routing Number.
+- Payment Instructions.
+
+Customers can submit their transaction reference and payment details for administrative verification.
+
+A submitted receipt must never automatically count as a successful payment.
+
+**F. Cash on Delivery**
+
+Provide an optional Cash on Delivery facility.
+
+Administrators can enable or disable payment methods.
+
+**Payment Security Requirements**
+
+- Never store customer card details or payment PINs.
+- Never trust a frontend payment success message.
+- Verify payment transactions through backend APIs.
+- Verify transaction ID, amount, currency, and order reference.
+- Validate payment notifications and callbacks.
+- Implement idempotent payment processing.
+- Prevent duplicate payment processing.
+- Maintain a complete transaction history.
+- Support payment failure and cancellation.
+- Support refunds and refund tracking.
+- Reconcile payment records with gateway settlements.
+- Store credentials only in secure environment variables or a secrets manager.
+
+Maintain separate payment provider adapters so future gateways can be added without rewriting the order management system.
+
+### 10. Order Management System
+
+Create a complete order management module.
+
+Order information should include:
+
+- Order ID.
+- Customer ID.
+- Customer Name.
+- Contact Number.
+- Email.
+- Shipping Address.
+- Billing Address.
+- Products.
+- Product Variants.
+- Quantity.
+- Unit Price.
+- Discount.
+- Subtotal.
+- Shipping Fee.
+- Tax/VAT where applicable.
+- Grand Total.
+- Payment Method.
+- Payment Status.
+- Order Status.
+- Order Date.
+- Tracking Number.
+- Order Remarks.
+
+Order statuses:
+
+1. Pending Payment.
+2. Payment Processing.
+3. Paid.
+4. Confirmed.
+5. Processing.
+6. Packed.
+7. Shipped.
+8. Delivered.
+9. Cancelled.
+10. Return Requested.
+11. Returned.
+12. Refunded.
+
+Provide:
+- Order list.
+- Order details.
+- Order search.
+- Order filtering.
+- Order editing where permitted.
+- Order cancellation.
+- Order invoice.
+- Packing slip.
+- Shipping information.
+- Shipment tracking.
+- Order status history.
+- Customer order notifications.
+
+Maintain historical product names, variant information, prices, and addresses within each order so changes to the original product or customer profile do not alter old orders.
+
+### 11. Inventory and Stock Management System
+
+This is one of the most important modules.
+
+Develop an integrated inventory management system.
+
+The administrator must be able to:
+- Add opening stock.
+- Purchase new stock.
+- Increase product quantity.
+- Decrease product quantity.
+- Adjust damaged stock.
+- Adjust returned stock.
+- Transfer stock between locations if multiple warehouses are enabled.
+- View available quantity.
+- View reserved quantity.
+- View sold quantity.
+- View remaining quantity.
+- View low-stock products.
+- View out-of-stock products.
+- View inventory valuation.
+
+Maintain an inventory transaction ledger.
+
+Every stock transaction must record:
+- Product ID.
+- Variant ID.
+- Transaction Type.
+- Quantity In.
+- Quantity Out.
+- Previous Quantity.
+- New Quantity.
+- Reference Number.
+- Transaction Date.
+- User ID.
+- Remarks.
+
+Stock transaction types:
+
+- Opening Stock.
+- Purchase.
+- Sales.
+- Sales Return.
+- Purchase Return.
+- Stock Adjustment.
+- Damaged Stock.
+- Stock Transfer.
+- Cancellation.
+- Exchange.
+
+**Automatic Stock Updates**
+
+When an order is accepted:
+- Reserve the ordered quantity using an atomic database transaction.
+- Prevent two customers from purchasing the same remaining stock.
+- Convert reservations into stock deductions when the order is confirmed for fulfilment.
+- Release stock on valid cancellation or expired unpaid orders.
+- Prevent negative inventory unless explicitly authorized.
+
+For Cash on Delivery, reserve stock at order acceptance and finalize the stock movement at the appropriate fulfilment stage.
+
+All inventory changes must be traceable.
+
+### 12. Supplier and Purchase Management
+
+Develop a supplier management module.
+
+Supplier information:
+- Supplier Name.
+- Contact Person.
+- Phone Number.
+- Email.
+- Address.
+- Company Name.
+- Bank Information.
+- Remarks.
+
+Purchase management features:
+- Create purchase orders.
+- Record supplier invoices.
+- Purchase date.
+- Product and variant selection.
+- Purchase quantities.
+- Unit purchase cost.
+- Discounts.
+- Additional purchase expenses.
+- Total purchase value.
+- Payment status.
+- Outstanding supplier balance.
+- Purchase history.
+
+When purchased goods are received and approved, update inventory automatically.
+
+Maintain purchase returns and supplier payment records.
+
+### 13. Business Income and Expense Management
+
+Implement a complete business finance module.
+
+**Income Sources**
+- Product Sales.
+- Delivery Charges Collected.
+- Other Business Income.
+- Additional Income.
+
+**Expense Categories**
+- Product Purchase Expenses.
+- Delivery and Courier Expenses.
+- Packaging Expenses.
+- Marketing Expenses.
+- Advertising Expenses.
+- Employee Salaries.
+- Office Rent.
+- Electricity Bills.
+- Internet Bills.
+- Payment Gateway Charges.
+- Returns and Refund Expenses.
+- Other Expenses.
+
+Allow users to add, edit, and manage expense categories.
+
+Each expense must include:
+- Expense ID.
+- Category.
+- Description.
+- Amount.
+- Date.
+- Payment Method.
+- Reference Number.
+- Attachment or Receipt.
+- Created By.
+
+### 14. Profit and Loss Calculation
+
+Implement an accurate financial reporting system.
+
+Do not calculate profit simply by subtracting all expenses from total sales without considering inventory cost and returns.
+
+Calculate the following:
+
+**Gross Sales**
+
+Total sales before discounts and refunds.
+
+**Net Sales**
+
+Net Sales = Gross Sales - Discounts - Sales Refunds.
+
+**Cost of Goods Sold (COGS)**
+
+Calculate the cost of products actually sold using a consistent inventory costing method, preferably weighted average or FIFO.
+
+**Gross Profit**
+
+Gross Profit = Net Sales - Cost of Goods Sold.
+
+**Net Profit**
+
+Net Profit = Gross Profit - Operating Expenses - Payment Fees - Other Applicable Business Expenses.
+
+Maintain separate records for:
+- Sales revenue.
+- Product purchase cost.
+- Cost of goods sold.
+- Operating expenses.
+- Gateway charges.
+- Delivery expenses.
+- Refunds.
+- Taxes and applicable liabilities.
+- Customer receivables.
+- Supplier payables.
+- Cash and bank balances.
+
+Avoid double-counting product purchases as both COGS and operating expenses.
+
+Support daily, weekly, monthly, quarterly, and yearly financial calculations.
+
+Provide revenue, gross profit, net profit, expense, and profit-margin charts.
+
+Allow date-wise and category-wise financial reports.
+
+### 15. Admin Dashboard
+
+Create an attractive, professional business management dashboard.
+
+The dashboard must show real-time or appropriately refreshed information from PostgreSQL.
+
+**Dashboard Summary Cards**
+
+- Total Sales Today.
+- Total Sales This Month.
+- Total Sales This Year.
+- Total Orders.
+- Pending Orders.
+- Completed Orders.
+- Total Customers.
+- Total Products.
+- Total Stock Quantity.
+- Inventory Valuation.
+- Low Stock Products.
+- Out of Stock Products.
+- Total Purchases.
+- Total Expenses.
+- Gross Profit.
+- Net Profit.
+
+**Dashboard Charts**
+
+- Daily Sales Chart.
+- Monthly Sales Chart.
+- Yearly Sales Chart.
+- Income vs Expense.
+- Gross Profit vs Net Profit.
+- Best-Selling Products.
+- Top Product Categories.
+- Payment Method Analysis.
+- Order Status Analysis.
+- Inventory Analysis.
+
+Provide:
+- Date range selection.
+- Daily filter.
+- Weekly filter.
+- Monthly filter.
+- Yearly filter.
+- Custom date range.
+- Search and filtering.
+
+Display recent orders, low-stock alerts, recent transactions, and pending administrative tasks.
+
+Never display dummy figures as actual business performance.
+
+### 16. Admin Panel and User Roles
+
+Create a secure administration panel with a professional sidebar navigation.
+
+Suggested user roles:
+
+1. Super Administrator.
+2. Administrator.
+3. Product Manager.
+4. Inventory Manager.
+5. Order Manager.
+6. Accountant.
+7. Customer Support.
+
+Implement Role-Based Access Control.
+
+Each role must have configurable permissions for:
+- View.
+- Create.
+- Edit.
+- Delete.
+- Approve.
+- Export.
+- Manage Users.
+- Manage Settings.
+
+Restrict sensitive financial and administrative operations to authorized users.
+
+Maintain an audit log for important administrative actions.
+
+### 17. Additional E-Commerce Features
+
+Implement:
+
+- Wishlist.
+- Product comparison.
+- Product reviews and ratings.
+- Discount coupons.
+- Promotional campaigns.
+- Flash sales.
+- Free delivery thresholds.
+- Minimum order amount.
+- Related products.
+- Recently viewed products.
+- Customer notifications.
+- Email order confirmation.
+- SMS order updates.
+- Invoice generation.
+- Product return and exchange requests.
+- Refund management.
+- Customer support/contact form.
+- FAQ.
+- Privacy Policy.
+- Terms and Conditions.
+- Return and Refund Policy.
+- Delivery Policy.
+
+Provide SEO-friendly product URLs, metadata, structured product data, sitemap, and robots.txt.
+
+### 18. Database Architecture
+
+Create a properly normalized PostgreSQL database.
+
+Consider the following tables and related entities:
+
+**Authentication and Customers**
+- users
+- roles
+- permissions
+- user_roles
+- addresses
+- customer_profiles
+- sessions
+- verification_tokens
+
+**Products**
+- categories
+- subcategories
+- brands
+- products
+- product_variants
+- product_images
+- sizes
+- colors
+- product_attributes
+- product_reviews
+
+**Inventory**
+- warehouses
+- stock_balances
+- stock_movements
+- stock_reservations
+- stock_adjustments
+
+**Suppliers and Purchases**
+- suppliers
+- purchase_orders
+- purchase_order_items
+- supplier_payments
+- purchase_returns
+
+**Shopping**
+- carts
+- cart_items
+- wishlists
+- wishlist_items
+
+**Orders and Shipping**
+- orders
+- order_items
+- order_status_history
+- shipments
+- shipment_items
+- shipping_addresses_snapshots
+
+**Payment**
+- payment_methods
+- payment_transactions
+- payment_attempts
+- payment_webhook_events
+- refunds
+- gateway_settlements
+
+**Finance**
+- income_transactions
+- expense_categories
+- expenses
+- financial_transactions
+- accounting_entries, if double-entry accounting is implemented
+
+**Marketing**
+- coupons
+- coupon_redemptions
+- promotions
+- banners
+
+**System**
+- notifications
+- audit_logs
+- system_settings
+
+Define all appropriate relationships, constraints, indexes, numeric precision, and timestamps.
+
+Use database migrations rather than manual production database changes.
+
+Use proper transaction handling for order placement, stock reservation, payments, and refunds.
+
+### 19. Application Security
+
+Security is a strict requirement.
+
+Implement security practices aligned with the OWASP Application Security Verification Standard and applicable OWASP Top 10 risks.
+
+Requirements:
+
+- HTTPS throughout production.
+- Secure password hashing using Argon2id or an appropriately configured bcrypt implementation.
+- Secure session management.
+- HttpOnly, Secure, and appropriate SameSite cookies.
+- Protection against SQL injection.
+- Protection against cross-site scripting (XSS).
+- CSRF protection where applicable.
+- Content Security Policy.
+- Rate limiting.
+- Login attempt protection.
+- Account verification.
+- Secure OTP expiration and validation.
+- Role-based authorization.
+- Server-side input validation.
+- Secure file upload validation.
+- API authentication and authorization.
+- Secure error handling.
+- CORS restrictions.
+- Security headers.
+- Secrets management.
+- Encrypted backups.
+- Audit logging.
+- Database access restrictions.
+
+Do not expose:
+- Database credentials.
+- Payment gateway secrets.
+- API keys.
+- OTP secrets.
+- Password hashes.
+- Sensitive customer information.
+
+Never store payment PINs, passwords, or raw card information.
+
+Protect against:
+- Unauthorized admin access.
+- Payment manipulation.
+- Fake payment callbacks.
+- Duplicate payment processing.
+- Duplicate orders.
+- Inventory manipulation.
+- Price manipulation.
+- Coupon abuse.
+- Account enumeration.
+- Brute-force attacks.
+
+The backend must always independently validate product prices, discounts, quantities, available stock, shipping fees, and order totals.
+
+### 20. API Architecture
+
+Create secure, documented REST APIs.
+
+Suggested API groups:
+
+- /api/auth
+- /api/users
+- /api/customers
+- /api/addresses
+- /api/products
+- /api/categories
+- /api/brands
+- /api/cart
+- /api/wishlist
+- /api/checkout
+- /api/orders
+- /api/payments
+- /api/refunds
+- /api/shipments
+- /api/inventory
+- /api/suppliers
+- /api/purchases
+- /api/expenses
+- /api/reports
+- /api/dashboard
+- /api/admin
+- /api/settings
+
+Use:
+- Proper HTTP status codes.
+- Request validation.
+- Centralized error handling.
+- Pagination.
+- Search.
+- Sorting.
+- Filtering.
+- API documentation using OpenAPI/Swagger.
+- Consistent response formats.
+
+### 21. Reports and Exporting
+
+Generate professional reports with print facilities.
+
+Required reports:
+
+**Sales Reports**
+- Daily Sales.
+- Monthly Sales.
+- Yearly Sales.
+- Product-Wise Sales.
+- Category-Wise Sales.
+- Customer-Wise Sales.
+- Order-Wise Sales.
+- Payment-Wise Sales.
+
+**Inventory Reports**
+- Current Stock.
+- Stock Movement.
+- Stock Valuation.
+- Low Stock.
+- Out of Stock.
+- Damaged Stock.
+- Sales and Returns.
+
+**Purchase Reports**
+- Supplier-Wise Purchases.
+- Purchase History.
+- Outstanding Supplier Payments.
+
+**Financial Reports**
+- Daily Income.
+- Monthly Income.
+- Yearly Income.
+- Daily Expenses.
+- Monthly Expenses.
+- Yearly Expenses.
+- Profit and Loss.
+- Gross Profit.
+- Net Profit.
+- Cash and Bank Transactions.
+- Payment Gateway Reconciliation.
+
+Export reports into:
+- PDF.
+- Excel (.xlsx).
+- CSV.
+
+Include:
+- Store logo.
+- Store name.
+- Report title.
+- Date range.
+- Generation date.
+- Relevant totals.
+- Page numbers.
+- Professional print layout.
+
+### 22. Notification System
+
+Implement:
+- Order confirmation emails.
+- Payment confirmation emails.
+- Payment failure notifications.
+- Shipping notifications.
+- Delivery notifications.
+- Cancellation notifications.
+- Refund notifications.
+- Low-stock alerts.
+- Out-of-stock alerts.
+- New-order notifications.
+- Admin notifications.
+
+Allow notification settings to be managed by administrators.
+
+### 23. Performance and Scalability
+
+Implement:
+- Lazy loading.
+- Optimized product images.
+- WebP/AVIF image support.
+- Image compression.
+- Pagination.
+- Database indexing.
+- Efficient PostgreSQL queries.
+- Caching.
+- Background jobs.
+- Optimized frontend bundles.
+- CDN integration.
+- Responsive image delivery.
+
+The system must remain maintainable and scalable as product, customer, and order volumes grow.
+
+### 24. Testing and Quality Assurance
+
+Conduct comprehensive testing.
+
+**Frontend Testing**
+- Product browsing.
+- Search and filtering.
+- Cart management.
+- Checkout.
+- Authentication.
+- Responsive layouts.
+
+**Backend Testing**
+- API validation.
+- Authentication.
+- Authorization.
+- Order creation.
+- Inventory operations.
+- Payment verification.
+- Refund processing.
+- Financial calculations.
+
+**Database Testing**
+- Relationships.
+- Constraints.
+- Transaction integrity.
+- Concurrent stock purchases.
+- Data backup and restoration.
+
+**Payment Testing**
+- Successful payment.
+- Failed payment.
+- Cancelled payment.
+- Duplicate callback.
+- Invalid transaction.
+- Incorrect amount.
+- Refund.
+- Payment timeout.
+
+Perform automated unit, integration, and end-to-end tests.
+
+Do not release the production system until critical payment, authentication, inventory, and financial tests pass.
+
+### 25. Deployment and Production Environment
+
+Prepare the application for real online deployment.
+
+Provide:
+
+- Production-ready frontend.
+- Production-ready backend.
+- PostgreSQL production database.
+- Secure environment configuration.
+- Domain configuration.
+- HTTPS certificate.
+- Reverse proxy configuration.
+- Docker configuration.
+- Database migration instructions.
+- Image storage configuration.
+- Payment gateway production configuration.
+- Automated database backups.
+- Backup restoration procedure.
+- Application logging.
+- Error monitoring.
+- Server health monitoring.
+- CI/CD deployment workflow.
+
+Provide separate:
+- Development environment.
+- Testing/staging environment.
+- Production environment.
+
+Never commit production credentials or secrets to GitHub.
+
+### 26. Expected Project Structure
+
+Organize the project professionally.
+
+Suggested structure:
+
+```text
+garments-ecommerce/
+│
+├── apps/
+│   ├── storefront/
+│   │   ├── public/
+│   │   ├── src/
+│   │   │   ├── app/
+│   │   │   ├── components/
+│   │   │   ├── features/
+│   │   │   ├── hooks/
+│   │   │   ├── services/
+│   │   │   ├── styles/
+│   │   │   ├── utils/
+│   │   │   └── types/
+│   │   └── package.json
+│   │
+│   └── admin/
+│       ├── src/
+│       │   ├── components/
+│       │   ├── pages/
+│       │   ├── modules/
+│       │   ├── layouts/
+│       │   ├── hooks/
+│       │   └── services/
+│       └── package.json
+│
+├── server/
+│   ├── src/
+│   │   ├── modules/
+│   │   │   ├── auth/
+│   │   │   ├── users/
+│   │   │   ├── products/
+│   │   │   ├── categories/
+│   │   │   ├── cart/
+│   │   │   ├── orders/
+│   │   │   ├── payments/
+│   │   │   ├── inventory/
+│   │   │   ├── purchases/
+│   │   │   ├── suppliers/
+│   │   │   ├── expenses/
+│   │   │   ├── finance/
+│   │   │   └── reports/
+│   │   ├── middleware/
+│   │   ├── config/
+│   │   ├── database/
+│   │   ├── utils/
+│   │   └── app.ts
+│   └── package.json
+│
+├── database/
+│   ├── migrations/
+│   └── schema/
+│
+├── shared/
+│   ├── types/
+│   └── validation/
+│
+├── docs/
+│   ├── installation.md
+│   ├── database-design.md
+│   ├── api-documentation.md
+│   ├── payment-integration.md
+│   ├── security.md
+│   └── deployment.md
+│
+├── tests/
+├── docker/
+├── .env.example
+├── docker-compose.yml
+├── package.json
+├── README.md
+└── LICENSE
+```
+
+Adapt this structure as necessary while preserving clear separation of storefront, administration, backend, shared code, and database responsibilities.
+
+### 27. Development Methodology
+
+Develop this project in the following phases.
+
+**Phase 1: Planning and Architecture**
+- Analyze requirements.
+- Finalize system architecture.
+- Design database schema.
+- Define APIs.
+- Prepare UI/UX wireframes.
+
+**Phase 2: Database and Backend**
+- Create PostgreSQL database.
+- Implement authentication.
+- Implement customer management.
+- Implement product and category management.
+- Implement inventory and purchasing.
+- Implement cart and order APIs.
+- Implement financial modules.
+
+**Phase 3: Customer Website**
+- Build homepage.
+- Build category pages.
+- Build product listings.
+- Build product details.
+- Build cart.
+- Build authentication.
+- Build shipping and billing forms.
+- Build checkout.
+
+**Phase 4: Payment Integration**
+- Integrate bKash and Nagad through approved payment APIs or a supported payment gateway.
+- Integrate Sonali Bank SPG where merchant access is available.
+- Implement server-side payment verification.
+- Implement payment reconciliation and refunds.
+
+**Phase 5: Admin Dashboard**
+- Build analytics dashboard.
+- Implement order management.
+- Implement product management.
+- Implement inventory management.
+- Implement supplier and purchase management.
+- Implement income and expense management.
+- Implement profit and loss reports.
+
+**Phase 6: Reports and Notifications**
+- Implement report generation.
+- Implement print and export.
+- Implement email and SMS notifications.
+
+**Phase 7: Testing and Security**
+- Perform comprehensive testing.
+- Fix all critical errors.
+- Test payment and inventory concurrency.
+- Perform security testing.
+- Verify financial calculations.
+
+**Phase 8: Deployment**
+- Configure production.
+- Deploy frontend and backend.
+- Configure PostgreSQL.
+- Configure domain and HTTPS.
+- Configure production payment credentials.
+- Test the complete live shopping journey.
+- Prepare final documentation.
+
+### 28. Final Deliverables
+
+The completed project must include:
+
+1. Full React.js frontend source code.
+2. Full Node.js backend source code.
+3. Complete PostgreSQL database schema.
+4. Database migration files.
+5. Secure customer authentication.
+6. Secure administrator authentication.
+7. Complete e-commerce storefront.
+8. Functional shopping cart.
+9. Shipping and billing management.
+10. Payment gateway integrations.
+11. Complete order management.
+12. Inventory and stock management.
+13. Supplier and purchase management.
+14. Income and expense management.
+15. Accurate profit and loss calculation.
+16. Professional admin dashboard.
+17. Reports and export facilities.
+18. Email and SMS notifications.
+19. Automated test suite.
+20. Installation documentation.
+21. Deployment documentation.
+22. Database backup and restore instructions.
+23. API documentation.
+24. Production environment configuration.
+
+### 29. Strict Development Instructions
+
+- Write actual working code, not pseudocode.
+- Do not generate dummy sales, expenses, customers, or stock transactions.
+- Do not display fake business analytics.
+- Do not hardcode payment credentials.
+- Do not use frontend-only financial calculations as the authoritative source.
+- Do not trust frontend prices, quantities, discounts, or payment status.
+- Do not permit unauthorized admin operations.
+- Do not allow duplicate payment callbacks to create duplicate orders or transactions.
+- Do not allow stock quantities to become inconsistent.
+- Do not silently swallow application errors.
+- Use reusable components and maintainable architecture.
+- Follow clean coding principles.
+- Add comments where business logic is complex.
+- Include proper validation and error handling.
+- Keep the code modular and extensible.
+- Make the website fully responsive.
+- Test every major feature before marking it complete.
+
+**MOST IMPORTANT:** Every module must work with the actual PostgreSQL database. Product information, stock, orders, payments, customers, income, expenses, and reports must be interconnected.
+
+Do not stop after building an attractive frontend. Deliver a functional, secure, database-driven, production-ready garments e-commerce and business management system.
+Start by presenting the complete architecture, database ER diagram, development roadmap, and UI/UX design. Then implement the application phase by phase, providing all required source files, database migrations, setup instructions, and deployment documentation.
