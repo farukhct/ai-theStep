@@ -74,7 +74,7 @@ function StorefrontApp() {
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<
-    'analytics' | 'products' | 'inventory' | 'orders' | 'bids' | 'suppliers' | 'finance' | 'audit'
+    'analytics' | 'products' | 'add-product' | 'inventory' | 'orders' | 'bids' | 'suppliers' | 'finance' | 'audit'
   >('analytics');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
@@ -136,7 +136,7 @@ function StorefrontApp() {
     setSelectedProduct(null);
     setIsDetailModalOpen(false);
     setEditingProduct(product);
-    setDashboardTab('products');
+    setDashboardTab('add-product');
     setIsDashboardOpen(true);
   };
 
@@ -336,7 +336,7 @@ function StorefrontApp() {
                   type="button"
                   onClick={() => {
                     setEditingProduct(null);
-                    setDashboardTab('products');
+                    setDashboardTab('add-product');
                     setIsDashboardOpen(true);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#ff4300] hover:bg-[#d93800] text-white font-semibold cursor-pointer transition-colors"

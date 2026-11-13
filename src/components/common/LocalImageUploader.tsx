@@ -128,36 +128,35 @@ export const LocalImageUploader: React.FC<LocalImageUploaderProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={handleTriggerPicker}
-        className={`relative border-2 border-dashed rounded-xl p-5 sm:p-6 transition-all cursor-pointer text-center group ${
+        className={`relative border-2 border-dashed rounded-2xl p-6 sm:p-8 transition-all cursor-pointer text-center group ${
           isDragging
-            ? 'border-neutral-950 bg-neutral-100 scale-[1.01] shadow-md'
-            : 'border-neutral-300 hover:border-neutral-800 bg-neutral-50/70 hover:bg-white'
+            ? 'border-[#465FFF] bg-[#ECF3FF]/60 dark:bg-[#465FFF]/10 scale-[1.005] shadow-md'
+            : 'border-gray-300 dark:border-gray-700 hover:border-[#465FFF] dark:hover:border-[#7592FF] bg-gray-50/70 dark:bg-white/[0.02] hover:bg-white dark:hover:bg-white/[0.04]'
         }`}
       >
-        <div className="flex flex-col items-center justify-center space-y-2.5">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-xs ${
-            isDragging ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-800 border border-neutral-200 group-hover:border-neutral-400 group-hover:scale-105'
+        <div className="flex flex-col items-center justify-center space-y-3">
+          <div className={`w-13 h-13 rounded-2xl flex items-center justify-center transition-all shadow-xs ${
+            isDragging
+              ? 'bg-[#465FFF] text-white'
+              : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 group-hover:border-[#465FFF]/50 group-hover:scale-105'
           }`}>
             {isProcessing ? (
-              <Loader2 className="w-6 h-6 animate-spin text-neutral-900" />
+              <Loader2 className="w-6 h-6 animate-spin text-[#465FFF]" />
             ) : (
-              <HardDrive className="w-6 h-6 text-neutral-900" />
+              <HardDrive className="w-6 h-6 text-[#465FFF] dark:text-[#7592FF]" />
             )}
           </div>
 
           <div>
-            <p className="text-xs sm:text-sm font-bold text-neutral-950 flex items-center justify-center gap-1.5">
-              <span>{isProcessing ? 'Processing local drive files...' : label}</span>
-              <span className="text-[10px] font-mono font-normal px-2 py-0.5 rounded bg-neutral-200 text-neutral-700">
-                Local Drive
-              </span>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center justify-center gap-2">
+              <span>{isProcessing ? 'Optimizing local drive files...' : label}</span>
             </p>
-            <p className="text-[11px] text-neutral-500 mt-1 max-w-sm mx-auto">
-              Drag & drop photos directly from your computer, or click to browse hard drive
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md mx-auto">
+              Drag and drop photos directly from your computer, or click to browse your local drive
             </p>
           </div>
 
-          <div className="pt-1 flex flex-wrap items-center justify-center gap-2">
+          <div className="pt-1 flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
               disabled={isProcessing}
@@ -165,17 +164,17 @@ export const LocalImageUploader: React.FC<LocalImageUploaderProps> = ({
                 e.stopPropagation();
                 handleTriggerPicker();
               }}
-              className="px-3.5 py-1.5 bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-300 text-white font-bold text-xs rounded-lg transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-[#465FFF] hover:bg-[#3641F5] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold text-xs rounded-lg transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <UploadCloud className="w-3.5 h-3.5" />
-              <span>Browse Files</span>
+              <span>Browse Local Files</span>
             </button>
-            <span className="text-[10px] text-neutral-400">
+            <span className="text-[11px] font-mono-num text-gray-500 dark:text-gray-400">
               {multiple ? `Up to ${maxFiles} images at once` : 'Single image'}
             </span>
           </div>
 
-          <p className="text-[10px] text-neutral-400">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">
             {description}
           </p>
         </div>
@@ -183,13 +182,13 @@ export const LocalImageUploader: React.FC<LocalImageUploaderProps> = ({
 
       {/* Error Message */}
       {errorMsg && (
-        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+        <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
           <span>{errorMsg}</span>
-          <button 
-            type="button" 
-            onClick={() => setErrorMsg(null)} 
-            className="ml-auto text-rose-400 hover:text-rose-700 font-bold"
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            className="ml-auto text-rose-400 hover:text-rose-700 dark:hover:text-rose-200 font-bold cursor-pointer"
           >
             ✕
           </button>
@@ -198,16 +197,16 @@ export const LocalImageUploader: React.FC<LocalImageUploaderProps> = ({
 
       {/* Recent Local Upload Summary Chips */}
       {recentUploads.length > 0 && (
-        <div className="p-3 bg-neutral-100/70 rounded-xl border border-neutral-200 space-y-2">
+        <div className="p-3.5 bg-gray-50 dark:bg-white/[0.03] rounded-xl border border-gray-200 dark:border-gray-800 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-neutral-800 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Successfully Inserted from Local Drive ({recentUploads.length})</span>
+            <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Inserted from Local Drive ({recentUploads.length})</span>
             </span>
             <button
               type="button"
               onClick={() => setRecentUploads([])}
-              className="text-[10px] text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
+              className="text-[11px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white underline cursor-pointer"
             >
               Clear Log
             </button>
@@ -217,12 +216,12 @@ export const LocalImageUploader: React.FC<LocalImageUploaderProps> = ({
             {recentUploads.slice(0, 4).map((up, i) => {
               const savings = Math.max(0, Math.round(((up.originalSize - up.optimizedSize) / up.originalSize) * 100));
               return (
-                <div key={i} className="flex items-center gap-2 p-1.5 bg-white rounded-lg border border-neutral-200 shadow-2xs">
-                  <img src={up.dataUrl} alt={up.fileName} className="w-8 h-8 rounded object-cover shrink-0 bg-neutral-100" />
+                <div key={i} className="flex items-center gap-2.5 p-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
+                  <img src={up.dataUrl} alt={up.fileName} className="w-9 h-9 rounded-md object-cover shrink-0 bg-gray-100 dark:bg-gray-800" />
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-neutral-900 truncate">{up.fileName}</p>
-                    <p className="text-[10px] text-neutral-400">
-                      {formatBytes(up.originalSize)} → <span className="text-emerald-700 font-bold">{formatBytes(up.optimizedSize)}</span> ({savings}% saved)
+                    <p className="font-medium text-gray-900 dark:text-white truncate">{up.fileName}</p>
+                    <p className="text-[10px] font-mono-num text-gray-500 dark:text-gray-400">
+                      {formatBytes(up.originalSize)} → <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{formatBytes(up.optimizedSize)}</span> ({savings}% saved)
                     </p>
                   </div>
                 </div>
