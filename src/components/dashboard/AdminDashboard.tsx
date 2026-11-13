@@ -32,7 +32,11 @@ import {
   LayoutGrid,
   Store,
   FileText,
-  Receipt
+  Receipt,
+  Calendar as CalendarIcon,
+  User as UserIcon,
+  CreditCard,
+  Kanban
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useAuth } from '../../context/AuthContext';
@@ -45,15 +49,31 @@ import {
   StatisticsAreaChart,
   BangladeshDemographicCard
 } from './TailAdminCharts';
+import { TailAdminAnalyticsView } from './TailAdminAnalyticsView';
+import {
+  CustomersView,
+  InvoicesView,
+  BillingEpsView,
+  CalendarView,
+  TaskKanbanView,
+  UserProfileView
+} from './TailAdminOperationsViews';
 import { Product, Order, OrderStatus } from '../../types';
 import { getPaymentChannelName } from '../../config/epsPaymentOptions';
 
-type AdminTab =
+export type AdminTab =
   | 'analytics'
+  | 'traffic-analytics'
   | 'products'
   | 'add-product'
   | 'inventory'
   | 'orders'
+  | 'invoices'
+  | 'billing'
+  | 'customers'
+  | 'calendar'
+  | 'profile'
+  | 'tasks'
   | 'bids'
   | 'suppliers'
   | 'finance'
@@ -116,8 +136,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isDark, setIsDark] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
-  const [openMenuGroup, setOpenMenuGroup] = useState<'dashboard' | 'ecommerce' | 'operations'>('dashboard');
+  const [openMenuGroup, setOpenMenuGroup] = useState<'dashboard' | 'ecommerce' | 'tasks' | 'operations'>('dashboard');
   const [globalSearch, setGlobalSearch] = useState<string>('');
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState<boolean>(false);
   const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState<boolean>(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState<boolean>(false);
   const [recentOrderFilter, setRecentOrderFilter] = useState<string>('all');
@@ -386,10 +407,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const tabTitles: Record<AdminTab, string> = {
     analytics: 'eCommerce Overview',
+    'traffic-analytics': 'Analytics & Conversion',
     products: 'Products Catalog',
     'add-product':
       productEditorState.mode === 'edit' ? 'Edit Product' : 'Create TheSteps Product',
-    orders: 'Orders & Invoices',
+    orders: 'Orders Management',
+    invoices: 'Invoices & Dispatch',
+    billing: 'Billing & EPS Gateway',
+    customers: 'Customers Directory',
+    calendar: 'Campaign & Restock Calendar',
+    profile: 'User Profile & Store Settings',
+    tasks: 'Operations Task Board',
     inventory: 'Inventory & Stock Ledger',
     bids: 'Customer Bids & Vouchers',
     finance: 'Finance & P&L Statement',
@@ -461,7 +489,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     }
                   }}
                   className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    activeTab === 'analytics' || activeTab === 'finance'
+                    activeTab === 'analytics' || activeTab === 'traffic-analytics' || activeTab === 'finance'
                       ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
                   }`}
@@ -478,7 +506,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   )}
                 </button>
 
-                {!compact && openMenuGroup === 'dashboard' && (
+                {!compact && (openMenuGroup === 'dashboard' || activeTab === 'analytics' || activeTab === 'traffic-analytics' || activeTab === 'finance') && (
                   <div className="pl-9 pr-2 py-1 space-y-1">
                     <button
                       type="button"
@@ -489,7 +517,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
                       }`}
                     >
-                      eCommerce Overview
+                      eCommerce
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('traffic-analytics')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'traffic-analytics'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Analytics
                     </button>
                     <button
                       type="button"
@@ -516,7 +555,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     }
                   }}
                   className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    activeTab === 'products' || activeTab === 'add-product' || activeTab === 'orders' || activeTab === 'bids'
+                    activeTab === 'products' || activeTab === 'add-product' || activeTab === 'orders' || activeTab === 'invoices' || activeTab === 'billing'
                       ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
                   }`}
@@ -533,7 +572,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   )}
                 </button>
 
-                {!compact && (openMenuGroup === 'ecommerce' || activeTab === 'products' || activeTab === 'add-product' || activeTab === 'orders' || activeTab === 'bids') && (
+                {!compact && (openMenuGroup === 'ecommerce' || activeTab === 'products' || activeTab === 'add-product' || activeTab === 'orders' || activeTab === 'invoices' || activeTab === 'billing') && (
                   <div className="pl-9 pr-2 py-1 space-y-1">
                     <button
                       type="button"
@@ -566,7 +605,124 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
                       }`}
                     >
-                      <span>Orders &amp; Invoices ({orders.length})</span>
+                      <span>Orders ({orders.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('invoices')}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'invoices'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      <span>Invoices</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('billing')}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'billing'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      <span>Billing &amp; EPS</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Customers Directory */}
+                <button
+                  type="button"
+                  onClick={() => selectTab('customers')}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'customers'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Customers"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Users className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Customers</span>}
+                  </span>
+                </button>
+
+                {/* Calendar */}
+                <button
+                  type="button"
+                  onClick={() => selectTab('calendar')}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'calendar'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Calendar"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <CalendarIcon className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Calendar</span>}
+                  </span>
+                </button>
+
+                {/* User Profile */}
+                <button
+                  type="button"
+                  onClick={() => selectTab('profile')}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'profile'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="User Profile"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <UserIcon className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">User Profile</span>}
+                  </span>
+                </button>
+
+                {/* Tasks & Bids Accordion */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (compact) {
+                      selectTab('tasks');
+                    } else {
+                      setOpenMenuGroup(openMenuGroup === 'tasks' ? 'dashboard' : 'tasks');
+                    }
+                  }}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'tasks' || activeTab === 'bids'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Task & Offers"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Kanban className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Tasks &amp; Offers</span>}
+                  </span>
+                  {!compact && (
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 transition-transform ${openMenuGroup === 'tasks' ? 'rotate-180' : ''}`}
+                    />
+                  )}
+                </button>
+
+                {!compact && (openMenuGroup === 'tasks' || activeTab === 'tasks' || activeTab === 'bids') && (
+                  <div className="pl-9 pr-2 py-1 space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => selectTab('tasks')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'tasks'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Kanban Board
                     </button>
                     <button
                       type="button"
@@ -616,7 +772,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   title="Suppliers & POs"
                 >
                   <span className="flex items-center gap-3 min-w-0">
-                    <Users className="w-4 h-4 shrink-0" />
+                    <Receipt className="w-4 h-4 shrink-0" />
                     {!compact && <span className="truncate">Suppliers &amp; POs</span>}
                   </span>
                 </button>
@@ -821,6 +977,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {/* Right Utility Controls */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* Mobile Search Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsMobileSearchOpen((p) => !p)}
+                className="sm:hidden w-10 h-10 rounded-full border border-gray-200 dark:border-gray-800 flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                aria-label="Toggle search bar"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+
               {/* Theme Switcher */}
               <button
                 type="button"
@@ -939,6 +1105,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         type="button"
                         onClick={() => {
                           setIsUserDropdownOpen(false);
+                          selectTab('profile');
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
+                      >
+                        Edit Profile &amp; Settings
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserDropdownOpen(false);
+                          selectTab('billing');
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
+                      >
+                        Billing &amp; EPS Gateway
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserDropdownOpen(false);
                           selectTab('audit');
                         }}
                         className="w-full text-left px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
@@ -972,6 +1158,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </button>
             </div>
           </header>
+
+          {/* Responsive Mobile Search Bar */}
+          {isMobileSearchOpen && (
+            <div className="sm:hidden px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={globalSearch}
+                  onChange={(e) => setGlobalSearch(e.target.value)}
+                  placeholder="Search products, orders, SKUs..."
+                  className="w-full h-10 pl-9 pr-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#465FFF]"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Main Scrollable Viewport */}
           <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
@@ -1028,6 +1230,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   onCancel={() => selectTab('products')}
                   onSubmit={handleProductFormSubmit}
                 />
+              )}
+
+              {/* VIEW 1B: TAILADMIN ANALYTICS DASHBOARD */}
+              {activeTab === 'traffic-analytics' && (
+                <TailAdminAnalyticsView
+                  products={products}
+                  orders={orders}
+                  netSales={financialSummary.netSales}
+                  averageOrderValue={financialSummary.averageOrderValue}
+                  onEditProduct={handleOpenEditProduct}
+                  onOpenInvoices={() => selectTab('invoices')}
+                  onOpenBilling={() => selectTab('billing')}
+                />
+              )}
+
+              {/* VIEW 1C: CUSTOMERS DIRECTORY */}
+              {activeTab === 'customers' && (
+                <CustomersView
+                  orders={orders}
+                  bids={bids}
+                  onPrintInvoice={onPrintInvoice}
+                />
+              )}
+
+              {/* VIEW 1D: INVOICES MANAGER */}
+              {activeTab === 'invoices' && (
+                <InvoicesView
+                  orders={orders}
+                  onPrintInvoice={onPrintInvoice}
+                />
+              )}
+
+              {/* VIEW 1E: BILLING & EPS PAYMENT CHANNELS */}
+              {activeTab === 'billing' && (
+                <BillingEpsView
+                  orders={orders}
+                  grossSales={financialSummary.grossSales}
+                  gatewayFees={financialSummary.gatewayFees}
+                />
+              )}
+
+              {/* VIEW 1F: CAMPAIGN & RESTOCK CALENDAR */}
+              {activeTab === 'calendar' && (
+                <CalendarView
+                  coupons={coupons}
+                  purchaseOrders={purchaseOrders}
+                />
+              )}
+
+              {/* VIEW 1G: OPERATIONS KANBAN BOARD */}
+              {activeTab === 'tasks' && (
+                <TaskKanbanView
+                  orders={orders}
+                  products={products}
+                  bids={bids}
+                  onNavigateTab={(t) => selectTab(t)}
+                />
+              )}
+
+              {/* VIEW 1H: USER PROFILE & ACCOUNT SETTINGS */}
+              {activeTab === 'profile' && (
+                <UserProfileView currentUser={currentUser} />
               )}
 
               {/* VIEW 1: TAILADMIN ECOMMERCE OVERVIEW */}

@@ -74,7 +74,22 @@ function StorefrontApp() {
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<
-    'analytics' | 'products' | 'add-product' | 'inventory' | 'orders' | 'bids' | 'suppliers' | 'finance' | 'audit'
+    | 'analytics'
+    | 'traffic-analytics'
+    | 'products'
+    | 'add-product'
+    | 'inventory'
+    | 'orders'
+    | 'invoices'
+    | 'billing'
+    | 'customers'
+    | 'calendar'
+    | 'profile'
+    | 'tasks'
+    | 'bids'
+    | 'suppliers'
+    | 'finance'
+    | 'audit'
   >('analytics');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
