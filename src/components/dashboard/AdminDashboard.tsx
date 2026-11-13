@@ -28,7 +28,9 @@ import {
   Edit,
   Copy,
   Trash2,
-  Archive
+  Archive,
+  Handshake,
+  Ticket
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useAuth } from '../../context/AuthContext';
@@ -48,12 +50,13 @@ import {
   GarmentSize 
 } from '../../types';
 import { GARMENT_CATEGORIES, BD_DIVISIONS } from '../../config/constants';
+import { getPaymentChannelName } from '../../config/epsPaymentOptions';
 
 interface AdminDashboardProps {
   isOpen: boolean;
   onClose: () => void;
   onPrintInvoice: (order: Order) => void;
-  initialTab?: 'analytics' | 'products' | 'inventory' | 'orders' | 'suppliers' | 'finance' | 'audit';
+  initialTab?: 'analytics' | 'products' | 'inventory' | 'orders' | 'bids' | 'suppliers' | 'finance' | 'audit';
   editingProduct?: Product | null;
   onClearEditingProduct?: () => void;
 }
@@ -74,6 +77,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     purchaseOrders,
     expenses,
     auditLogs,
+    coupons,
+    bids,
     financialSummary,
     dateRange,
     setDateRange,
@@ -83,6 +88,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     adjustVariantStock,
     updateOrderStatus,
     cancelOrder,
+    respondToBid,
+    addCoupon,
+    toggleCouponStatus,
     addSupplier,
     createPurchaseOrder,
     receivePurchaseOrder,
@@ -94,11 +102,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     lastBackupDate
   } = useStore();
 
-  const { currentUser, isAdmin } = useAuth();
+  const { currentUser, isAdmin, isSeller } = useAuth();
   const { formatPrice } = useLanguage();
   const { addToast } = useNotification();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'inventory' | 'orders' | 'suppliers' | 'finance' | 'audit'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'inventory' | 'orders' | 'bids' | 'suppliers' | 'finance' | 'audit'>('analytics');
+  const [newVoucherCode, setNewVoucherCode] = useState('');
+  const [newVoucherTitle, setNewVoucherTitle] = useState('');
+  const [newVoucherValue, setNewVoucherValue] = useState(200);
+  const [newVoucherMinSpend, setNewVoucherMinSpend] = useState(1500);
+  const [counterOfferMap, setCounterOfferMap] = useState<Record<string, number>>({});
 
   React.useEffect(() => {
     if (initialTab && isOpen) {
@@ -285,19 +298,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-neutral-950/80 backdrop-blur-xs overflow-y-auto">
       <div className="relative w-full max-w-7xl bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden my-4 max-h-[96vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         {/* Top Management Bar */}
-        <div className="bg-neutral-950 text-white p-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 border-b border-neutral-800 shrink-0">
+        <div className="bg-[#292933] text-white p-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-emerald-400 font-bold">
+            <div className="w-9 h-9 rounded-xl bg-[#ff4300] flex items-center justify-center text-white font-bold">
               <Layers className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-black tracking-wide font-serif-heading">AURA BUSINESS SUITE</h2>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-neutral-800 text-emerald-400 border border-neutral-700">
+                <h2 className="text-base font-black tracking-wide">
+                  {isSeller ? 'THESTEPS SELLER HUB' : 'THESTEPS ADMIN & SELLER SUITE'}
+                </h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#ff4300] text-white">
                   {currentUser?.role?.toUpperCase()}
                 </span>
               </div>
-              <p className="text-[11px] text-neutral-400">Integrated Garments Inventory, Accounting & Order Management</p>
+              <p className="text-[11px] text-neutral-300">Marketplace Inventory, Bids, Vouchers, EPS Settlements &amp; Accounting</p>
             </div>
           </div>
 
@@ -351,27 +366,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <button
             onClick={() => setActiveTab('orders')}
             className={`py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'orders' ? 'border-neutral-950 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+              activeTab === 'orders' ? 'border-[#ff4300] text-[#ff4300]' : 'border-transparent text-neutral-500 hover:text-neutral-800'
             }`}
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Customer Orders ({orders.length})</span>
+            <span>Orders ({orders.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('bids')}
+            className={`py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'bids' ? 'border-[#ff4300] text-[#ff4300]' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            <Handshake className="w-4 h-4" />
+            <span>Bids &amp; Vouchers ({bids.filter((b) => b.status === 'pending').length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('products')}
             className={`py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'products' ? 'border-neutral-950 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+              activeTab === 'products' ? 'border-[#ff4300] text-[#ff4300]' : 'border-transparent text-neutral-500 hover:text-neutral-800'
             }`}
           >
             <Package className="w-4 h-4" />
-            <span>Catalog & Variants</span>
+            <span>Catalog &amp; Variants</span>
           </button>
 
           <button
             onClick={() => setActiveTab('inventory')}
             className={`py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'inventory' ? 'border-neutral-950 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+              activeTab === 'inventory' ? 'border-[#ff4300] text-[#ff4300]' : 'border-transparent text-neutral-500 hover:text-neutral-800'
             }`}
           >
             <Layers className="w-4 h-4" />
@@ -381,31 +406,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <button
             onClick={() => setActiveTab('finance')}
             className={`py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'finance' ? 'border-neutral-950 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+              activeTab === 'finance' ? 'border-[#ff4300] text-[#ff4300]' : 'border-transparent text-neutral-500 hover:text-neutral-800'
             }`}
           >
             <DollarSign className="w-4 h-4" />
-            <span>Profit & Loss / Finance</span>
+            <span>P&amp;L / Finance</span>
           </button>
 
           <button
             onClick={() => setActiveTab('suppliers')}
             className={`py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'suppliers' ? 'border-neutral-950 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+              activeTab === 'suppliers' ? 'border-[#ff4300] text-[#ff4300]' : 'border-transparent text-neutral-500 hover:text-neutral-800'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Suppliers & POs</span>
+            <span>Suppliers &amp; POs</span>
           </button>
 
           <button
             onClick={() => setActiveTab('audit')}
             className={`py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'audit' ? 'border-neutral-950 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+              activeTab === 'audit' ? 'border-[#ff4300] text-[#ff4300]' : 'border-transparent text-neutral-500 hover:text-neutral-800'
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
-            <span>Audit Trail & SOC2</span>
+            <span>Audit &amp; SOC2</span>
           </button>
         </div>
 
@@ -963,8 +988,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           ৳{ord.grandTotal.toLocaleString()}
                         </td>
                         <td className="py-3 px-4 text-center">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-neutral-100 text-neutral-800">
-                            {ord.paymentMethod}
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-800 whitespace-nowrap">
+                            {getPaymentChannelName(ord.paymentMethod)}
                           </span>
                           <span className={`block text-[9px] font-bold capitalize mt-0.5 ${ord.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
                             {ord.paymentStatus}
@@ -1202,6 +1227,180 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: BIDS & VOUCHERS MANAGEMENT */}
+          {activeTab === 'bids' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left: Customer Price Bids */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-bold text-sm text-[#292933] flex items-center gap-2">
+                    <Handshake className="w-4 h-4 text-[#008ED2]" />
+                    <span>Customer Product Bids ({bids.length})</span>
+                  </h4>
+                  <p className="text-[11px] text-neutral-500">Accept, counter-offer, or decline custom shopper price proposals.</p>
+                </div>
+
+                <div className="space-y-3">
+                  {bids.map((bid) => (
+                    <div key={bid.id} className="p-4 rounded-xl border border-neutral-200 bg-white space-y-3">
+                      <div className="flex items-start gap-3">
+                        <img src={bid.productImage} alt={bid.productName} className="w-12 h-12 rounded object-cover border border-neutral-200 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-bold text-[#292933] truncate">{bid.productName}</p>
+                            <span className="px-2 py-0.5 rounded bg-neutral-100 font-mono text-[10px] font-bold uppercase">
+                              {bid.status}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-neutral-500 mt-0.5">
+                            {bid.customerName} ({bid.customerPhone}) · Qty {bid.quantity}
+                          </p>
+                          <p className="text-xs font-mono-num mt-1">
+                            List: ৳{bid.originalPrice.toLocaleString()} · Offer:{' '}
+                            <span className="font-bold text-[#ff4300]">৳{bid.bidAmount.toLocaleString()}</span>
+                          </p>
+                          {bid.note && <p className="text-[11px] italic text-neutral-500 mt-1">&quot;{bid.note}&quot;</p>}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-neutral-100">
+                        <button
+                          type="button"
+                          onClick={() => respondToBid(bid.id, 'accepted')}
+                          className="px-3 py-1.5 rounded bg-[#1b8a3a] hover:bg-[#15702f] text-white font-semibold text-[11px] cursor-pointer"
+                        >
+                          Accept Bid
+                        </button>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            placeholder="Counter ৳"
+                            value={counterOfferMap[bid.id] || ''}
+                            onChange={(e) =>
+                              setCounterOfferMap((prev) => ({ ...prev, [bid.id]: Number(e.target.value) }))
+                            }
+                            className="w-24 px-2 py-1 border border-neutral-300 rounded font-mono-num text-[11px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const amt = counterOfferMap[bid.id] || Math.round((bid.originalPrice + bid.bidAmount) / 2);
+                              respondToBid(bid.id, 'countered', amt);
+                            }}
+                            className="px-2.5 py-1.5 rounded bg-[#008ED2] hover:bg-[#0074ad] text-white font-semibold text-[11px] cursor-pointer"
+                          >
+                            Counter
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => respondToBid(bid.id, 'declined')}
+                          className="px-3 py-1.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[11px] cursor-pointer ml-auto"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right: Vouchers & Flash Deal Controls */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-bold text-sm text-[#292933] flex items-center gap-2">
+                    <Ticket className="w-4 h-4 text-[#EC1561]" />
+                    <span>TheSteps Vouchers &amp; Promo Codes</span>
+                  </h4>
+                  <p className="text-[11px] text-neutral-500">Create and toggle ticket-stub vouchers shown on product pages and cart.</p>
+                </div>
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!newVoucherCode.trim()) return;
+                    await addCoupon({
+                      code: newVoucherCode.trim().toUpperCase(),
+                      title: newVoucherTitle.trim() || `৳${newVoucherValue} TheSteps Voucher`,
+                      shopName: currentUser?.shopName || 'TheSteps Official',
+                      discountType: 'fixed',
+                      discountValue: newVoucherValue,
+                      minOrderAmount: newVoucherMinSpend,
+                      expiryDate: '2026-12-31',
+                      usageLimit: 500,
+                      isActive: true,
+                      terms: `Valid on orders above ৳${newVoucherMinSpend.toLocaleString()}.`
+                    });
+                    setNewVoucherCode('');
+                    setNewVoucherTitle('');
+                  }}
+                  className="p-4 rounded-xl border border-neutral-200 bg-neutral-50 space-y-3"
+                >
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <input
+                      type="text"
+                      placeholder="Code (e.g. FLASH300)"
+                      value={newVoucherCode}
+                      onChange={(e) => setNewVoucherCode(e.target.value.toUpperCase())}
+                      className="px-3 py-2 bg-white border border-neutral-300 rounded font-mono uppercase text-xs"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Display Title"
+                      value={newVoucherTitle}
+                      onChange={(e) => setNewVoucherTitle(e.target.value)}
+                      className="px-3 py-2 bg-white border border-neutral-300 rounded text-xs"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Discount ৳"
+                      value={newVoucherValue}
+                      onChange={(e) => setNewVoucherValue(Number(e.target.value))}
+                      className="px-3 py-2 bg-white border border-neutral-300 rounded font-mono-num text-xs"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Min Spend ৳"
+                      value={newVoucherMinSpend}
+                      onChange={(e) => setNewVoucherMinSpend(Number(e.target.value))}
+                      className="px-3 py-2 bg-white border border-neutral-300 rounded font-mono-num text-xs"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded bg-[#ff4300] hover:bg-[#d93800] text-white font-semibold text-xs cursor-pointer"
+                  >
+                    + Create TheSteps Voucher
+                  </button>
+                </form>
+
+                <div className="space-y-2.5">
+                  {coupons.map((c) => (
+                    <div key={c.id} className="p-3.5 rounded-xl border border-dashed border-[#008ED2]/50 bg-white flex items-center justify-between gap-3">
+                      <div>
+                        <span className="font-mono font-bold text-[#008ED2] bg-[#E6F4FB] px-2 py-0.5 rounded">{c.code}</span>
+                        <p className="font-semibold text-[#292933] mt-1">{c.title}</p>
+                        <p className="text-[11px] text-neutral-500">
+                          {c.discountType === 'percentage' ? `${c.discountValue}%` : `৳${c.discountValue}`} off · Min ৳{c.minOrderAmount.toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleCouponStatus(c.id)}
+                        className={`px-3 py-1.5 rounded text-[11px] font-bold cursor-pointer ${
+                          c.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-200 text-neutral-600'
+                        }`}
+                      >
+                        {c.isActive ? 'Active' : 'Paused'}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

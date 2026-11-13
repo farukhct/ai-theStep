@@ -24,23 +24,23 @@ const NotificationContext = createContext<NotificationContextType | null>(null);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
-    const saved = localStorage.getItem('aura_notifications');
+    const saved = localStorage.getItem('sd_notifications');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { return JSON.parse(saved); } catch { /* ignore */ }
     }
     return [
       {
         id: 'notif-1',
-        title: 'New bKash Order #AURA-26-8891',
-        message: 'Order ৳3,400 received from Tanvir Ahmed (Gulshan-2, Dhaka).',
+        title: 'New EPS bKash Order #SD-26-8891',
+        message: 'Order ৳7,960 received from Tanvir Ahmed (Gulshan-2, Dhaka).',
         type: 'order',
         isRead: false,
         timestamp: new Date(Date.now() - 3600000).toISOString()
       },
       {
         id: 'notif-2',
-        title: 'Low Stock Alert: TSH-BLK-XL',
-        message: 'Midnight Jet Black XL has reached minimum threshold (12 remaining).',
+        title: 'Flash Deal Stock Low: SD-GAD-001',
+        message: 'Amazfit Active Titanium AMOLED Smart Watch has only 5 Flash units left.',
         type: 'inventory',
         isRead: false,
         timestamp: new Date(Date.now() - 7200000).toISOString()
@@ -51,7 +51,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('aura_notifications', JSON.stringify(notifications));
+    localStorage.setItem('sd_notifications', JSON.stringify(notifications));
   }, [notifications]);
 
   const playAlertSound = () => {
@@ -60,16 +60,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
-    } catch (e) {
-      // AudioContext might be blocked until user gesture
+      osc.stop(audioCtx.currentTime + 0.25);
+    } catch {
+      // AudioContext blocked until gesture
     }
   };
 
@@ -80,7 +80,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4500);
+    }, 4000);
   };
 
   const addNotification = (
@@ -134,26 +134,26 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     >
       {children}
       {/* Toast Notification Container */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+      <div className="fixed bottom-20 sm:bottom-5 right-4 z-[70] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto p-4 rounded-xl shadow-xl border backdrop-blur-md transition-all duration-300 transform translate-y-0 ${
+            className={`pointer-events-auto p-3.5 rounded-lg shadow-xl border backdrop-blur-md transition-all duration-200 ${
               toast.type === 'success'
-                ? 'bg-neutral-900/95 text-white border-neutral-800'
+                ? 'bg-[#292933]/95 text-white border-[#3f3f4e]'
                 : toast.type === 'warning'
                 ? 'bg-amber-950/95 text-amber-100 border-amber-800'
                 : toast.type === 'error'
                 ? 'bg-rose-950/95 text-rose-100 border-rose-800'
-                : 'bg-neutral-900/95 text-neutral-100 border-neutral-700'
+                : 'bg-[#292933]/95 text-neutral-100 border-neutral-700'
             }`}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h4 className="text-xs font-bold tracking-wider uppercase text-neutral-400">
+                <h4 className="text-[11px] font-bold tracking-wider uppercase text-[#ff7645]">
                   {toast.title}
                 </h4>
-                <p className="text-sm font-medium mt-0.5 leading-snug">{toast.message}</p>
+                <p className="text-xs font-medium mt-0.5 leading-snug">{toast.message}</p>
               </div>
               <button
                 onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}

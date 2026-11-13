@@ -9,9 +9,11 @@ interface AuthContextType {
   fbUser: FbUser | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isSeller: boolean;
   isManager: boolean;
   hasRole: (roles: UserRole[]) => boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithMobilePin: (phone: string, pin: string, fullName?: string) => Promise<void>;
   switchDemoRole: (role: UserRole) => void;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -19,16 +21,21 @@ interface AuthContextType {
   isMfaChallenged: boolean;
   verifyMfaOtp: (code: string) => boolean;
   saveAddress: (address: BangladeshAddress) => void;
+  toggleWishlist: (productId: string) => void;
+  collectVoucher: (code: string) => void;
 }
 
 const DEFAULT_ADMIN: UserProfile = {
   uid: 'admin-faruk-01',
   email: 'faruk017@gmail.com',
-  displayName: 'Faruk (Architect)',
+  displayName: 'Faruk (Platform Owner)',
   phoneNumber: '+8801711000111',
+  shopName: 'TheSteps Official',
   role: 'superadmin',
   mfaEnabled: true,
   mfaMethod: 'sms',
+  savedWishlist: ['prod-001', 'prod-003'],
+  collectedVouchers: ['SMART10'],
   createdAt: '2026-01-01T00:00:00.000Z',
   addresses: [
     {
@@ -37,9 +44,9 @@ const DEFAULT_ADMIN: UserProfile = {
       email: 'faruk017@gmail.com',
       division: 'Dhaka',
       district: 'Dhaka City',
-      upazila: 'Banani',
-      detailedAddress: 'Road 11, Block D, Banani Commercial Area',
-      postcode: '1213'
+      upazila: 'Uttara Sector-11',
+      detailedAddress: 'Road 11, Sector-11, Uttara, Dhaka',
+      postcode: '1230'
     }
   ]
 };
@@ -48,52 +55,76 @@ const DEMO_PROFILES: Record<UserRole, UserProfile> = {
   superadmin: DEFAULT_ADMIN,
   admin: {
     uid: 'admin-02',
-    email: 'admin@auragarments.bd',
-    displayName: 'AURA Admin',
-    phoneNumber: '+8801711223344',
+    email: 'admin@thesteps.com.bd',
+    displayName: 'TheSteps Operations Admin',
+    phoneNumber: '+8801326052866',
+    shopName: 'TheSteps Official',
     role: 'admin',
     mfaEnabled: true,
     mfaMethod: 'totp',
+    savedWishlist: [],
+    collectedVouchers: ['SMART10', 'DEAL250'],
     createdAt: '2026-02-01T00:00:00.000Z'
+  },
+  seller: {
+    uid: 'seller-01',
+    email: 'merchant@gadgethub.bd',
+    displayName: 'Gadget Hub BD (Seller)',
+    phoneNumber: '+8801711998822',
+    shopName: 'Gadget Hub BD',
+    role: 'seller',
+    mfaEnabled: true,
+    mfaMethod: 'sms',
+    savedWishlist: [],
+    collectedVouchers: [],
+    createdAt: '2026-02-15T00:00:00.000Z'
   },
   product_manager: {
     uid: 'mgr-prod-01',
-    email: 'catalog@auragarments.bd',
-    displayName: 'Sartorial Catalog Manager',
+    email: 'catalog@thesteps.com.bd',
+    displayName: 'Catalog & Merchandising Lead',
     phoneNumber: '+8801711334455',
     role: 'product_manager',
     mfaEnabled: false,
     mfaMethod: 'none',
+    savedWishlist: [],
+    collectedVouchers: [],
     createdAt: '2026-03-01T00:00:00.000Z'
   },
   inventory_manager: {
     uid: 'mgr-inv-01',
-    email: 'warehouse@auragarments.bd',
-    displayName: 'Warehouse Logistics Head',
+    email: 'warehouse@thesteps.com.bd',
+    displayName: 'Rajshahi Hub Logistics Head',
     phoneNumber: '+8801811445566',
     role: 'inventory_manager',
     mfaEnabled: false,
     mfaMethod: 'none',
+    savedWishlist: [],
+    collectedVouchers: [],
     createdAt: '2026-03-01T00:00:00.000Z'
   },
   order_manager: {
     uid: 'mgr-ord-01',
-    email: 'orders@auragarments.bd',
+    email: 'orders@thesteps.com.bd',
     displayName: 'Fulfillment Supervisor',
     phoneNumber: '+8801911556677',
     role: 'order_manager',
     mfaEnabled: false,
     mfaMethod: 'none',
+    savedWishlist: [],
+    collectedVouchers: [],
     createdAt: '2026-03-01T00:00:00.000Z'
   },
   accountant: {
     uid: 'acc-01',
-    email: 'accounts@auragarments.bd',
+    email: 'accounts@thesteps.com.bd',
     displayName: 'Chief Financial Accountant',
     phoneNumber: '+8801711667788',
     role: 'accountant',
     mfaEnabled: true,
     mfaMethod: 'email',
+    savedWishlist: [],
+    collectedVouchers: [],
     createdAt: '2026-03-01T00:00:00.000Z'
   },
   customer: {
@@ -104,6 +135,8 @@ const DEMO_PROFILES: Record<UserRole, UserProfile> = {
     role: 'customer',
     mfaEnabled: false,
     mfaMethod: 'none',
+    savedWishlist: ['prod-001', 'prod-004'],
+    collectedVouchers: ['SMART10'],
     createdAt: '2026-05-15T00:00:00.000Z',
     addresses: [
       {
@@ -124,11 +157,10 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('aura_auth_user');
+    const saved = localStorage.getItem('sd_auth_user') || localStorage.getItem('aura_auth_user');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { return JSON.parse(saved); } catch { /* ignore */ }
     }
-    // Default to the Superadmin Faruk (owner of applet per environment info)
     return DEFAULT_ADMIN;
   });
 
@@ -143,27 +175,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const userDocRef = doc(db, 'users', user.uid);
           const docSnap = await getDoc(userDocRef);
-          
-          const isFaruk = user.email === 'faruk017@gmail.com';
+
+          const isFaruk = user.email === 'faruk017@gmail.com' && user.emailVerified;
           const defaultRole: UserRole = isFaruk ? 'superadmin' : 'customer';
 
           if (docSnap.exists()) {
             const data = docSnap.data() as UserProfile;
-            const updatedUser = {
+            const updatedUser: UserProfile = {
               ...data,
               role: isFaruk ? 'superadmin' : data.role || defaultRole
             };
             setCurrentUser(updatedUser);
-            localStorage.setItem('aura_auth_user', JSON.stringify(updatedUser));
+            localStorage.setItem('sd_auth_user', JSON.stringify(updatedUser));
           } else {
             const newProfile: UserProfile = {
               uid: user.uid,
               email: user.email || '',
               displayName: user.displayName || user.email?.split('@')[0] || 'Customer',
               phoneNumber: user.phoneNumber || '',
+              photoURL: user.photoURL || '',
               role: defaultRole,
               mfaEnabled: isFaruk,
               mfaMethod: isFaruk ? 'sms' : 'none',
+              savedWishlist: [],
+              collectedVouchers: ['SMART10'],
               createdAt: new Date().toISOString()
             };
             await setDoc(userDocRef, newProfile);
@@ -176,10 +211,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               });
             }
             setCurrentUser(newProfile);
-            localStorage.setItem('aura_auth_user', JSON.stringify(newProfile));
+            localStorage.setItem('sd_auth_user', JSON.stringify(newProfile));
           }
         } catch (err) {
-          console.warn('Firestore user fetch failed, fallback to local state:', err);
+          console.warn('Firestore user fetch failed, using local session:', err);
         }
       }
       setIsLoading(false);
@@ -200,19 +235,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithMobilePin = async (phone: string, pin: string, fullName?: string) => {
+    const cleaned = phone.replace(/\s+/g, '');
+    if (cleaned.length < 11) {
+      throw new Error('Please enter a valid 11-digit Bangladesh mobile number (01XXX-XXXXXX).');
+    }
+    if (!/^\d{4}$/.test(pin)) {
+      throw new Error('TheSteps Quick Login requires a 4-digit OTP / PIN.');
+    }
+
+    const mobileProfile: UserProfile = {
+      uid: `mob-${cleaned.slice(-8)}`,
+      email: `${cleaned.slice(-8)}@mobile.thesteps.com.bd`,
+      displayName: fullName?.trim() || `TheSteps Shopper (${cleaned.slice(-4)})`,
+      phoneNumber: cleaned,
+      role: 'customer',
+      mfaEnabled: true,
+      mfaMethod: 'sms',
+      savedWishlist: currentUser?.savedWishlist || [],
+      collectedVouchers: currentUser?.collectedVouchers || ['SMART10'],
+      createdAt: new Date().toISOString()
+    };
+    setCurrentUser(mobileProfile);
+    localStorage.setItem('sd_auth_user', JSON.stringify(mobileProfile));
+  };
+
   const switchDemoRole = (role: UserRole) => {
     const profile = DEMO_PROFILES[role] || DEFAULT_ADMIN;
     setCurrentUser(profile);
-    localStorage.setItem('aura_auth_user', JSON.stringify(profile));
+    localStorage.setItem('sd_auth_user', JSON.stringify(profile));
   };
 
   const signOut = async () => {
     try {
       await fbSignOut(auth);
-    } catch (e) {
+    } catch {
       // ignore
     }
     setCurrentUser(null);
+    localStorage.removeItem('sd_auth_user');
     localStorage.removeItem('aura_auth_user');
   };
 
@@ -220,12 +281,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) return;
     const updated = { ...currentUser, ...updates };
     setCurrentUser(updated);
-    localStorage.setItem('aura_auth_user', JSON.stringify(updated));
+    localStorage.setItem('sd_auth_user', JSON.stringify(updated));
 
-    try {
-      await setDoc(doc(db, 'users', currentUser.uid), updates, { merge: true });
-    } catch (e) {
-      console.warn('Profile sync to Firestore skipped (offline mode):', e);
+    if (fbUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), updates, { merge: true });
+      } catch (e) {
+        console.warn('Profile sync to Firestore skipped (offline/demo session):', e);
+      }
     }
   };
 
@@ -237,8 +300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const verifyMfaOtp = (code: string): boolean => {
-    // Accepts simulated code '123456' or any 6-digit number in test mode
-    if (code.length === 6) {
+    if (code.length === 4 || code.length === 6) {
       setIsMfaChallenged(false);
       return true;
     }
@@ -248,15 +310,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveAddress = (address: BangladeshAddress) => {
     if (!currentUser) return;
     const existing = currentUser.addresses || [];
-    const updated = [address, ...existing.filter(a => a.detailedAddress !== address.detailedAddress)];
+    const updated = [address, ...existing.filter((a) => a.detailedAddress !== address.detailedAddress)];
     updateProfile({ addresses: updated });
   };
 
+  const toggleWishlist = (productId: string) => {
+    if (!currentUser) return;
+    const currentList = currentUser.savedWishlist || [];
+    const exists = currentList.includes(productId);
+    const updated = exists ? currentList.filter((id) => id !== productId) : [productId, ...currentList];
+    updateProfile({ savedWishlist: updated });
+  };
+
+  const collectVoucher = (code: string) => {
+    if (!currentUser) return;
+    const upper = code.trim().toUpperCase();
+    const currentList = currentUser.collectedVouchers || [];
+    if (!currentList.includes(upper)) {
+      updateProfile({ collectedVouchers: [...currentList, upper] });
+    }
+  };
+
   const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
-  const isManager = isAdmin || 
-    currentUser?.role === 'product_manager' || 
-    currentUser?.role === 'inventory_manager' || 
-    currentUser?.role === 'order_manager' || 
+  const isSeller = currentUser?.role === 'seller';
+  const isManager =
+    isAdmin ||
+    isSeller ||
+    currentUser?.role === 'product_manager' ||
+    currentUser?.role === 'inventory_manager' ||
+    currentUser?.role === 'order_manager' ||
     currentUser?.role === 'accountant';
 
   const hasRole = (roles: UserRole[]): boolean => {
@@ -272,16 +354,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fbUser,
         isLoading,
         isAdmin,
+        isSeller,
         isManager,
         hasRole,
         signInWithGoogle,
+        signInWithMobilePin,
         switchDemoRole,
         signOut,
         updateProfile,
         toggleMfa,
         isMfaChallenged,
         verifyMfaOtp,
-        saveAddress
+        saveAddress,
+        toggleWishlist,
+        collectVoucher
       }}
     >
       {children}

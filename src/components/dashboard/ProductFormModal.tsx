@@ -18,8 +18,14 @@ import {
 } from 'lucide-react';
 import { Product, ProductVariant, GarmentSize } from '../../types';
 import { GARMENT_CATEGORIES } from '../../config/constants';
+import { MEDIA_ASSETS } from '../../config/mediaAssets';
 import { useNotification } from '../../context/NotificationContext';
 import { LocalImageUploader } from '../common/LocalImageUploader';
+import {
+  estimateImagesPayloadBytes,
+  formatBytes,
+  processLocalImageFiles
+} from '../../utils/imageUtils';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -42,13 +48,14 @@ const PRESET_COLORS = [
 ];
 
 const PRESET_IMAGES = [
-  { label: 'Heavyweight Tee Black', url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80' },
-  { label: 'Heavyweight Tee White', url: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&auto=format&fit=crop&q=80' },
-  { label: 'Executive Oxford Shirt', url: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&auto=format&fit=crop&q=80' },
-  { label: 'Raw Selvedge Denim', url: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&auto=format&fit=crop&q=80' },
-  { label: 'Smart Stretch Chinos', url: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80' },
-  { label: 'Tech Spacer Zip Hoodie', url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80' },
-  { label: 'Jacquard Festive Panjabi', url: 'https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=800&auto=format&fit=crop&q=80' }
+  { label: 'Titanium Smart Watch', url: MEDIA_ASSETS.prodSmartwatchPro },
+  { label: 'ANC Wireless Earbuds', url: MEDIA_ASSETS.prodEarbudsAnc },
+  { label: 'K-Beauty Serum Combo', url: MEDIA_ASSETS.prodSkincareSerum },
+  { label: 'Festive Panjabi Combo', url: MEDIA_ASSETS.prodMensPanjabi },
+  { label: 'Air Purifier & Kettle', url: MEDIA_ASSETS.prodHomeAppliance },
+  { label: 'Ergonomic Mesh Chair', url: MEDIA_ASSETS.prodErgoChair },
+  { label: 'Mechanical Keyboard', url: MEDIA_ASSETS.prodMechanicalKeyboard },
+  { label: 'TheSteps Creator Kit', url: MEDIA_ASSETS.heroTheStepsCampaign }
 ];
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
@@ -65,27 +72,30 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   // Form Fields State
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
-  const [category, setCategory] = useState('t-shirts');
-  const [subcategory, setSubcategory] = useState('Garments');
-  const [brand, setBrand] = useState('AURA Atelier');
+  const [category, setCategory] = useState('mobile-gadgets');
+  const [subcategory, setSubcategory] = useState('Electronics');
+  const [brand, setBrand] = useState('TheSteps Official');
+  const [shopName, setShopName] = useState('TheSteps Official');
+  const [warranty, setWarranty] = useState('1 Year Official Warranty');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'active' | 'draft' | 'archived'>('active');
   const [isFeatured, setIsFeatured] = useState(true);
   const [isNewArrival, setIsNewArrival] = useState(true);
   const [isBestSeller, setIsBestSeller] = useState(false);
+  const [isFlashDeal, setIsFlashDeal] = useState(false);
+  const [allowBid, setAllowBid] = useState(false);
+  const [freeDelivery, setFreeDelivery] = useState(true);
 
-  // Pricing & Fabric
-  const [regularPrice, setRegularPrice] = useState(1400);
-  const [discountedPrice, setDiscountedPrice] = useState(1150);
-  const [fabric, setFabric] = useState('100% Combed Ring-Spun Cotton');
-  const [material, setMaterial] = useState('Single Jersey Compact Yarn');
-  const [gsm, setGsm] = useState<number | undefined>(240);
-  const [weight, setWeight] = useState('320g');
+  // Pricing & Specs
+  const [regularPrice, setRegularPrice] = useState(2500);
+  const [discountedPrice, setDiscountedPrice] = useState(1950);
+  const [fabric, setFabric] = useState('Official Sealed Retail Box');
+  const [material, setMaterial] = useState('64-District Express Eligible');
+  const [gsm, setGsm] = useState<number | undefined>(undefined);
+  const [weight, setWeight] = useState('350g');
 
   // Images State
-  const [images, setImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80'
-  ]);
+  const [images, setImages] = useState<string[]>([MEDIA_ASSETS.prodSmartwatchPro]);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [imageSourceMode, setImageSourceMode] = useState<'local' | 'url' | 'presets'>('local');
 
@@ -125,39 +135,48 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setName(initialProduct.name);
       setSku(initialProduct.sku);
       setCategory(initialProduct.category);
-      setSubcategory(initialProduct.subcategory || 'Garments');
-      setBrand(initialProduct.brand || 'AURA Atelier');
+      setSubcategory(initialProduct.subcategory || 'General');
+      setBrand(initialProduct.brand || 'TheSteps Official');
+      setShopName(initialProduct.shopName || 'TheSteps Official');
+      setWarranty(initialProduct.warranty || '1 Year Official Warranty');
       setDescription(initialProduct.description || '');
       setStatus(initialProduct.status || 'active');
       setIsFeatured(Boolean(initialProduct.isFeatured));
       setIsNewArrival(Boolean(initialProduct.isNewArrival));
       setIsBestSeller(Boolean(initialProduct.isBestSeller));
+      setIsFlashDeal(Boolean(initialProduct.isFlashDeal));
+      setAllowBid(Boolean(initialProduct.allowBid));
+      setFreeDelivery(Boolean(initialProduct.freeDelivery));
       setRegularPrice(initialProduct.regularPrice);
       setDiscountedPrice(initialProduct.discountedPrice);
-      setFabric(initialProduct.fabric || '100% Combed Cotton');
-      setMaterial(initialProduct.material || 'Single Jersey');
-      setGsm(initialProduct.gsm || 240);
+      setFabric(initialProduct.fabric || 'Official Retail Box');
+      setMaterial(initialProduct.material || 'TheSteps Verified');
+      setGsm(initialProduct.gsm);
       setWeight(initialProduct.weight || '320g');
       setImages(initialProduct.images && initialProduct.images.length > 0 ? initialProduct.images : [PRESET_IMAGES[0].url]);
       setVariants(initialProduct.variants && initialProduct.variants.length > 0 ? initialProduct.variants : []);
     } else if (mode === 'create') {
-      // Default reset for creation
       setName('');
-      setSku(`GAR-${Date.now().toString().slice(-4)}`);
-      setCategory('t-shirts');
-      setSubcategory('Garments');
-      setBrand('AURA Atelier');
-      setDescription('Crafted with premium Bangladeshi textile engineering.');
+      setSku(`SD-${Date.now().toString().slice(-4)}`);
+      setCategory('mobile-gadgets');
+      setSubcategory('Electronics');
+      setBrand('TheSteps Official');
+      setShopName('TheSteps Official');
+      setWarranty('1 Year Official Warranty');
+      setDescription('100% Authentic product verified by TheSteps Bangladesh.');
       setStatus('active');
       setIsFeatured(true);
       setIsNewArrival(true);
       setIsBestSeller(false);
-      setRegularPrice(1400);
-      setDiscountedPrice(1150);
-      setFabric('100% Combed Ring-Spun Cotton');
-      setMaterial('Single Jersey');
-      setGsm(240);
-      setWeight('300g');
+      setIsFlashDeal(false);
+      setAllowBid(false);
+      setFreeDelivery(true);
+      setRegularPrice(2500);
+      setDiscountedPrice(1950);
+      setFabric('Official Sealed Box');
+      setMaterial('TheSteps Verified Quality');
+      setGsm(undefined);
+      setWeight('350g');
       setImages([PRESET_IMAGES[0].url]);
       setVariants([
         {
@@ -300,6 +319,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       category,
       subcategory,
       brand,
+      shopName: shopName.trim() || 'TheSteps Official',
+      warranty: warranty.trim() || '7-Day Easy Replacement',
       description: description.trim(),
       images,
       fabric,
@@ -314,6 +335,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       isFeatured,
       isNewArrival,
       isBestSeller,
+      isFlashDeal,
+      flashStockLeft: isFlashDeal ? Math.min(10, totalAvailable) : undefined,
+      flashSoldCount: isFlashDeal ? 12 : undefined,
+      allowBid,
+      minBidPrice: allowBid ? Math.round(Number(discountedPrice) * 0.85) : undefined,
+      freeDelivery,
       variants,
       rating: initialProduct?.rating || 5.0,
       reviewsCount: initialProduct?.reviewsCount || 0
@@ -340,10 +367,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold">
-                {mode === 'create' ? 'Create New Garment Product' : `Edit Product · ${initialProduct?.name}`}
+                {mode === 'create' ? 'Create TheSteps Product' : `Edit Product · ${initialProduct?.name}`}
               </h3>
               <p className="text-xs text-neutral-400">
-                {mode === 'create' ? 'Add catalog item with multi-variant stock ledger' : `SKU: ${initialProduct?.sku}`}
+                {mode === 'create' ? 'Publish catalog item with multi-variant stock & bidding' : `SKU: ${initialProduct?.sku}`}
               </p>
             </div>
           </div>
@@ -407,6 +434,54 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           {/* TAB 1: GENERAL & PRICING */}
           {activeTab === 'general' && (
             <div className="space-y-4">
+              {/* Quick Cover Image & Local Drive Shortcut */}
+              <div className="p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-14 h-16 rounded-lg overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0">
+                    {images[0] && (
+                      <img src={images[0]} alt="Primary cover" className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-bold text-neutral-900 text-xs block">
+                      Primary Garment Image ({images.length} total)
+                    </span>
+                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                      {images[0]?.startsWith('data:image/')
+                        ? 'Stored from local computer drive (optimized WebP/JPEG)'
+                        : 'Using studio sample or web image URL'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-2 bg-neutral-950 hover:bg-neutral-800 text-white font-bold rounded-lg text-[11px] cursor-pointer transition-colors">
+                    <HardDrive className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Upload from Drive</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/png,image/jpeg,image/webp,image/avif,image/svg+xml"
+                      className="sr-only"
+                      onChange={async (e) => {
+                        if (!e.target.files || e.target.files.length === 0) return;
+                        const results = await processLocalImageFiles(e.target.files);
+                        if (results.length > 0) {
+                          handleLocalImagesUploaded(results.map((r) => r.dataUrl));
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('images')}
+                    className="px-3 py-2 bg-white hover:bg-neutral-100 border border-neutral-300 text-neutral-800 font-bold rounded-lg text-[11px] cursor-pointer"
+                  >
+                    Manage Gallery
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block font-bold text-neutral-800 mb-1">Product Title *</label>
@@ -459,12 +534,35 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">Brand Line</label>
+                  <label className="block font-bold text-neutral-800 mb-1">Seller / Shop Name</label>
                   <input
                     type="text"
-                    placeholder="AURA Atelier"
+                    placeholder="TheSteps Official"
+                    value={shopName}
+                    onChange={(e) => setShopName(e.target.value)}
+                    className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-neutral-800 mb-1">Brand Name</label>
+                  <input
+                    type="text"
+                    placeholder="Amazfit / Keychron / TheSteps"
                     value={brand}
                     onChange={(e) => setBrand(e.target.value)}
+                    className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-neutral-800 mb-1">Warranty / Authenticity Note</label>
+                  <input
+                    type="text"
+                    placeholder="1 Year Official Brand Warranty"
+                    value={warranty}
+                    onChange={(e) => setWarranty(e.target.value)}
                     className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2"
                   />
                 </div>
@@ -516,15 +614,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <label className="block font-bold text-neutral-800 mb-1">Product Description</label>
                 <textarea
                   rows={3}
-                  placeholder="Detailed tailoring notes, silhouette cut, collar reinforcement..."
+                  placeholder="Detailed specifications, warranty coverage, box contents..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-950 focus:outline-none focus:border-neutral-900"
                 />
               </div>
 
-              {/* Merchandising & Status Toggles */}
-              <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
+              {/* Merchandising & TheSteps Feature Toggles */}
+              <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 grid grid-cols-2 sm:grid-cols-3 gap-3 items-center">
                 <div>
                   <label className="block font-bold text-neutral-800 mb-1">Catalog Status</label>
                   <select
@@ -539,33 +637,28 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </div>
 
                 <label className="flex items-center gap-2 cursor-pointer font-bold text-neutral-800">
-                  <input
-                    type="checkbox"
-                    checked={isFeatured}
-                    onChange={(e) => setIsFeatured(e.target.checked)}
-                    className="rounded text-neutral-900"
-                  />
+                  <input type="checkbox" checked={isFlashDeal} onChange={(e) => setIsFlashDeal(e.target.checked)} className="rounded" />
+                  <span>Flash Sale Zone</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-neutral-800">
+                  <input type="checkbox" checked={allowBid} onChange={(e) => setAllowBid(e.target.checked)} className="rounded" />
+                  <span>Allow Customer Bids</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-neutral-800">
+                  <input type="checkbox" checked={freeDelivery} onChange={(e) => setFreeDelivery(e.target.checked)} className="rounded" />
+                  <span>Free Delivery Badge</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-neutral-800">
+                  <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="rounded" />
                   <span>Featured Product</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer font-bold text-neutral-800">
-                  <input
-                    type="checkbox"
-                    checked={isNewArrival}
-                    onChange={(e) => setIsNewArrival(e.target.checked)}
-                    className="rounded text-neutral-900"
-                  />
-                  <span>New Arrival Badge</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer font-bold text-neutral-800">
-                  <input
-                    type="checkbox"
-                    checked={isBestSeller}
-                    onChange={(e) => setIsBestSeller(e.target.checked)}
-                    className="rounded text-neutral-900"
-                  />
-                  <span>Best Seller Badge</span>
+                  <input type="checkbox" checked={isBestSeller} onChange={(e) => setIsBestSeller(e.target.checked)} className="rounded" />
+                  <span>Best Seller</span>
                 </label>
               </div>
             </div>
@@ -879,12 +972,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               {imageSourceMode === 'url' && (
                 <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 space-y-3">
                   <label className="block text-xs font-bold text-neutral-800">
-                    Paste Image Web Address (CDN / Unsplash / S3)
+                    Paste Image Web Address
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="url"
-                      placeholder="https://images.unsplash.com/photo-..."
+                      placeholder="https://example.com/product-photo.jpg"
                       value={newImageUrl}
                       onChange={(e) => setNewImageUrl(e.target.value)}
                       className="flex-1 bg-white border border-neutral-300 rounded-lg px-3 py-2 text-xs text-neutral-900"
@@ -932,23 +1025,40 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
               {/* Active Gallery Thumbnails Grid */}
               <div className="pt-2 border-t border-neutral-200">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-bold text-neutral-900 text-xs">
-                    Current Catalog Images ({images.length}) · First image is Primary Cover
-                  </span>
-                  {images.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImages([images[0]]);
-                        addToast('Gallery Reset', 'Retained only primary cover image.', 'info');
-                      }}
-                      className="text-[11px] text-neutral-500 hover:text-neutral-950 underline cursor-pointer"
-                    >
-                      Keep Cover Only
-                    </button>
-                  )}
-                </div>
+                {(() => {
+                  const totalBytes = estimateImagesPayloadBytes(images);
+                  const isNearLimit = totalBytes > 850 * 1024;
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-neutral-900 text-xs">
+                          Current Catalog Images ({images.length}) · First image is Primary Cover
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
+                            isNearLimit
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-neutral-100 text-neutral-600'
+                          }`}
+                        >
+                          {formatBytes(totalBytes)} / 900 KB limit
+                        </span>
+                      </div>
+                      {images.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImages([images[0]]);
+                            addToast('Gallery Reset', 'Retained only primary cover image.', 'info');
+                          }}
+                          className="text-[11px] text-neutral-500 hover:text-neutral-950 underline cursor-pointer"
+                        >
+                          Keep Cover Only
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {images.map((img, index) => {
@@ -1023,10 +1133,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white font-bold rounded-xl uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-2.5 bg-[#ff4300] hover:bg-[#d93800] text-white font-bold rounded-xl uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
-                <span>{mode === 'create' ? 'Publish Garment' : 'Save Changes'}</span>
+                <span>{mode === 'create' ? 'Publish Product' : 'Save Changes'}</span>
               </button>
             </div>
           </div>

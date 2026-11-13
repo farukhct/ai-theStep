@@ -22,6 +22,18 @@ export interface OptimizedImageResult {
   };
 }
 
+export function estimateDataUrlBytes(url: string): number {
+  if (!url.startsWith('data:')) return url.length;
+  const commaIdx = url.indexOf(',');
+  if (commaIdx === -1) return url.length;
+  const base64Length = url.length - (commaIdx + 1);
+  return Math.round((base64Length * 3) / 4);
+}
+
+export function estimateImagesPayloadBytes(images: string[]): number {
+  return images.reduce((acc, img) => acc + estimateDataUrlBytes(img), 0);
+}
+
 /**
  * Optimizes an image selected from the user's local drive by scaling it to e-commerce
  * standard dimensions and converting to modern compressed WebP/JPEG format.
@@ -34,7 +46,7 @@ export async function optimizeLocalImage(
     quality?: number;
   } = {}
 ): Promise<OptimizedImageResult> {
-  const { maxWidth = 1200, maxHeight = 1500, quality = 0.85 } = options;
+  const { maxWidth = 960, maxHeight = 1200, quality = 0.78 } = options;
 
   if (!file.type.startsWith('image/')) {
     throw new Error(`File "${file.name}" is not a supported image format.`);

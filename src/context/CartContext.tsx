@@ -5,7 +5,7 @@ import { useNotification } from './NotificationContext';
 
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (product: Product, variant: ProductVariant, quantity?: number) => boolean;
+  addToCart: (product: Product, variant: ProductVariant, quantity?: number, overridePrice?: number) => boolean;
   updateQuantity: (variantId: string, quantity: number) => void;
   removeFromCart: (variantId: string) => void;
   clearCart: () => void;
@@ -29,17 +29,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { addToast } = useNotification();
   
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('aura_cart');
+    const saved = localStorage.getItem('sd_cart') || localStorage.getItem('aura_cart');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { return JSON.parse(saved); } catch { /* ignore */ }
     }
     return [];
   });
 
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(() => {
-    const saved = localStorage.getItem('aura_coupon');
+    const saved = localStorage.getItem('sd_coupon');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { return JSON.parse(saved); } catch { /* ignore */ }
     }
     return null;
   });
@@ -48,24 +48,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    localStorage.setItem('aura_cart', JSON.stringify(cart));
+    localStorage.setItem('sd_cart', JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
     if (appliedCoupon) {
-      localStorage.setItem('aura_coupon', JSON.stringify(appliedCoupon));
+      localStorage.setItem('sd_coupon', JSON.stringify(appliedCoupon));
     } else {
-      localStorage.removeItem('aura_coupon');
+      localStorage.removeItem('sd_coupon');
     }
   }, [appliedCoupon]);
 
-  const addToCart = (product: Product, variant: ProductVariant, quantity: number = 1): boolean => {
+  const addToCart = (
+    product: Product,
+    variant: ProductVariant,
+    quantity: number = 1,
+    overridePrice?: number
+  ): boolean => {
     const available = variant.stock - (variant.reservedStock || 0);
     if (available <= 0) {
-      addToast('Out of Stock', `${product.name} (${variant.size} - ${variant.color}) is currently sold out.`, 'warning');
+      addToast('Out of Stock', `${product.name} (${variant.size} · ${variant.color}) is currently sold out.`, 'warning');
       return false;
     }
 
+    const effectivePrice = overridePrice ?? variant.discountedPrice;
     let success = true;
     setCart((prev) => {
       const existingIndex = prev.findIndex((item) => item.variantId === variant.id);
@@ -73,16 +79,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentQty = prev[existingIndex].quantity;
         const newQty = currentQty + quantity;
         if (newQty > available) {
-          addToast('Stock Limit Reached', `Only ${available} items available for this size/color.`, 'warning');
+          addToast('Stock Limit Reached', `Only ${available} items available for this option.`, 'warning');
           success = false;
           return prev;
         }
         const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], quantity: newQty };
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: newQty,
+          discountedPrice: effectivePrice
+        };
         return updated;
       } else {
         if (quantity > available) {
-          addToast('Stock Limit Reached', `Only ${available} items available for this size/color.`, 'warning');
+          addToast('Stock Limit Reached', `Only ${available} items available for this option.`, 'warning');
           success = false;
           return prev;
         }
@@ -95,7 +105,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           color: variant.color,
           image: product.images[0] || '',
           regularPrice: variant.regularPrice,
-          discountedPrice: variant.discountedPrice,
+          discountedPrice: effectivePrice,
           purchasePrice: variant.purchasePrice,
           quantity,
           maxStock: available
@@ -105,7 +115,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (success) {
-      addToast('Added to Bag', `${product.name} (${variant.size} / ${variant.color}) added.`, 'success');
+      addToast('Added to Cart', `${product.name} added to your shopping cart.`, 'success');
       setIsCartOpen(true);
     }
     return success;
@@ -121,7 +131,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prev.map((item) => {
         if (item.variantId === variantId) {
           if (quantity > item.maxStock) {
-            addToast('Max Quantity', `Only ${item.maxStock} items available in stock.`, 'warning');
+            addToast('Max Quantity', `Only ${item.maxStock} units available in stock.`, 'warning');
             return { ...item, quantity: item.maxStock };
           }
           return { ...item, quantity };
@@ -140,29 +150,41 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAppliedCoupon(null);
   };
 
+  const getAvailableCoupons = (): Coupon[] => {
+    try {
+      const stored = localStorage.getItem('sd_coupons');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch { /* ignore */ }
+    return INITIAL_COUPONS;
+  };
+
   const applyCouponCode = (code: string): boolean => {
     const cleanCode = code.trim().toUpperCase();
-    const coupon = INITIAL_COUPONS.find(c => c.code === cleanCode && c.isActive);
+    const allCoupons = getAvailableCoupons();
+    const coupon = allCoupons.find((c) => c.code.toUpperCase() === cleanCode && c.isActive);
 
     if (!coupon) {
-      addToast('Invalid Coupon', 'The coupon code entered does not exist or has expired.', 'error');
+      addToast('Invalid Voucher', 'The voucher code entered is invalid or expired.', 'error');
       return false;
     }
 
     const currentSubtotal = cart.reduce((acc, item) => acc + item.discountedPrice * item.quantity, 0);
     if (currentSubtotal < coupon.minOrderAmount) {
-      addToast('Minimum Order Required', `Order at least ৳${coupon.minOrderAmount} to apply this code.`, 'warning');
+      addToast('Minimum Spend Required', `Spend at least ৳${coupon.minOrderAmount.toLocaleString()} to use ${coupon.code}.`, 'warning');
       return false;
     }
 
     setAppliedCoupon(coupon);
-    addToast('Coupon Applied', `Code ${coupon.code} applied successfully!`, 'success');
+    addToast('Voucher Applied', `Code ${coupon.code} activated!`, 'success');
     return true;
   };
 
   const removeCoupon = () => {
     setAppliedCoupon(null);
-    addToast('Coupon Removed', 'Promo code removed from your order.', 'info');
+    addToast('Voucher Removed', 'Discount voucher removed from order.', 'info');
   };
 
   const subtotal = cart.reduce((acc, item) => acc + item.discountedPrice * item.quantity, 0);
@@ -177,7 +199,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  // Shipping logic: Inside Dhaka = 60, Outside = 120. Free if subtotal >= 2500
   const isFreeShipping = subtotal >= 2500 || cart.length === 0;
   const shippingFee = cart.length === 0 ? 0 : isFreeShipping ? 0 : selectedDivision.toLowerCase() === 'dhaka' ? 60 : 120;
 

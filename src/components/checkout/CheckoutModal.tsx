@@ -9,15 +9,24 @@ import {
   Lock, 
   AlertCircle,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Smartphone,
+  Landmark,
+  Banknote
 } from 'lucide-react';
-import { BangladeshAddress, PaymentMethod, Order } from '../../types';
+import { BangladeshAddress, PaymentCategory, PaymentMethod, Order } from '../../types';
 import { BD_DIVISIONS, BD_DISTRICTS_MAP } from '../../config/constants';
+import {
+  EPS_PAYMENT_CHANNELS,
+  EPS_PLATFORM_INFO,
+  getPaymentChannelInfo
+} from '../../config/epsPaymentOptions';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
 import { useNotification } from '../../context/NotificationContext';
 import { PaymentGatewayModal } from './PaymentGatewayModal';
+import { EpsLogo, PaymentChannelLogo } from './EpsPaymentBadge';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -37,6 +46,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Shipping, 2: Billing & Review, 3: Payment
   const [isSameBilling, setIsSameBilling] = useState(true);
+  const [activePaymentTab, setActivePaymentTab] = useState<PaymentCategory>('mobile_banking');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bkash');
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,7 +124,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         const order = await createOrder({
           customerName: shipping.fullName,
           contactNumber: shipping.phone,
-          email: shipping.email || currentUser?.email || 'customer@auragarments.bd',
+          email: shipping.email || currentUser?.email || 'customer@thesteps.com.bd',
           shippingAddress: shipping,
           billingAddress: isSameBilling ? shipping : billing,
           items: cart,
@@ -144,11 +154,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setIsGatewayOpen(false);
     setIsSubmitting(true);
     try {
+      const channelInfo = getPaymentChannelInfo(paymentMethod);
       const isPaid = paymentMethod !== 'bank_transfer';
       const order = await createOrder({
         customerName: shipping.fullName,
         contactNumber: shipping.phone,
-        email: shipping.email || currentUser?.email || 'customer@auragarments.bd',
+        email: shipping.email || currentUser?.email || 'customer@thesteps.com.bd',
         shippingAddress: shipping,
         billingAddress: isSameBilling ? shipping : billing,
         items: cart,
@@ -159,7 +170,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         paymentMethod,
         paymentStatus: isPaid ? 'paid' : 'pending',
         transactionId,
-        remarks: `${paymentMethod.toUpperCase()} transaction verified: ${transactionId}`
+        remarks: `EPS ${channelInfo.name} (${channelInfo.categoryLabel}) verified: ${transactionId}`
       });
       clearCart();
       setIsSubmitting(false);
@@ -168,6 +179,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     } catch (e: any) {
       setIsSubmitting(false);
       setError(e.message || 'Failed to finalize transaction');
+    }
+  };
+
+  const handlePaymentTabChange = (cat: PaymentCategory) => {
+    setActivePaymentTab(cat);
+    const currentCat = getPaymentChannelInfo(paymentMethod).category;
+    if (currentCat !== cat) {
+      const firstInCat = EPS_PAYMENT_CHANNELS.find((ch) => ch.category === cat);
+      if (firstInCat) setPaymentMethod(firstInCat.id);
     }
   };
 
@@ -454,120 +474,128 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             )}
 
-            {/* STEP 3: PAYMENT METHOD SELECTION */}
-            {step === 3 && (
-              <div className="space-y-4 text-xs">
-                <h4 className="font-bold text-sm text-neutral-950 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-neutral-500" />
-                  <span>Select Payment Channel (Bangladesh)</span>
-                </h4>
+            {/* STEP 3: EASY PAYMENT SYSTEM (EPS) INTEGRATED CHECKOUT */}
+            {step === 3 && (() => {
+              const selectedChannel = getPaymentChannelInfo(paymentMethod);
+              const channelsInTab = EPS_PAYMENT_CHANNELS.filter((ch) => ch.category === activePaymentTab);
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* bKash */}
-                  <label 
-                    onClick={() => setPaymentMethod('bkash')}
-                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
-                      paymentMethod === 'bkash' ? 'border-[#E2136E] bg-pink-50/50 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[#E2136E] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                      b
+              return (
+                <div className="space-y-4 text-xs">
+                  {/* EPS Banner Header */}
+                  <div className="p-4 rounded-xl bg-neutral-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <EpsLogo />
+                      <p className="text-[11px] text-neutral-300 leading-relaxed pt-1">
+                        {EPS_PLATFORM_INFO.headline} · Cards, Internet Banking &amp; Mobile Financial Services in one checkout.
+                      </p>
                     </div>
-                    <div>
-                      <p className="font-bold text-neutral-950">bKash Merchant Pay</p>
-                      <p className="text-[10px] text-neutral-500">Instant OTP & PIN tokenized checkout</p>
+                    <div className="text-left sm:text-right shrink-0">
+                      <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">Payable Total</span>
+                      <span className="text-lg font-black font-mono tabular-nums text-white">৳{grandTotal.toLocaleString()}</span>
                     </div>
-                  </label>
+                  </div>
 
-                  {/* Nagad */}
-                  <label 
-                    onClick={() => setPaymentMethod('nagad')}
-                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
-                      paymentMethod === 'nagad' ? 'border-[#F7941D] bg-amber-50/50 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[#F7941D] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                      ন
-                    </div>
-                    <div>
-                      <p className="font-bold text-neutral-950">Nagad Online Checkout</p>
-                      <p className="text-[10px] text-neutral-500">Instant gateway authorization</p>
-                    </div>
-                  </label>
+                  {/* Interactive Payment Category Tabs */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-neutral-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => handlePaymentTabChange('mobile_banking')}
+                      className={`py-2 px-2.5 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                        activePaymentTab === 'mobile_banking'
+                          ? 'bg-white text-neutral-950 shadow-xs'
+                          : 'text-neutral-600 hover:text-neutral-950'
+                      }`}
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                      <span>Mobile Banking</span>
+                    </button>
 
-                  {/* Sonali Bank SPG */}
-                  <label 
-                    onClick={() => setPaymentMethod('sonali')}
-                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
-                      paymentMethod === 'sonali' ? 'border-teal-700 bg-teal-50/50 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[#008080] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                      SPG
-                    </div>
-                    <div>
-                      <p className="font-bold text-neutral-950">Sonali Payment Gateway</p>
-                      <p className="text-[10px] text-neutral-500">Electronic state banking portal</p>
-                    </div>
-                  </label>
+                    <button
+                      type="button"
+                      onClick={() => handlePaymentTabChange('cards')}
+                      className={`py-2 px-2.5 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                        activePaymentTab === 'cards'
+                          ? 'bg-white text-neutral-950 shadow-xs'
+                          : 'text-neutral-600 hover:text-neutral-950'
+                      }`}
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span>Cards</span>
+                    </button>
 
-                  {/* Credit / Debit Card */}
-                  <label 
-                    onClick={() => setPaymentMethod('card')}
-                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
-                      paymentMethod === 'card' ? 'border-neutral-900 bg-neutral-50 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                      <CreditCard className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-neutral-950">Visa / Mastercard</p>
-                      <p className="text-[10px] text-neutral-500">Encrypted 3D Secure checkout</p>
-                    </div>
-                  </label>
+                    <button
+                      type="button"
+                      onClick={() => handlePaymentTabChange('internet_banking')}
+                      className={`py-2 px-2.5 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                        activePaymentTab === 'internet_banking'
+                          ? 'bg-white text-neutral-950 shadow-xs'
+                          : 'text-neutral-600 hover:text-neutral-950'
+                      }`}
+                    >
+                      <Landmark className="w-3.5 h-3.5" />
+                      <span>Internet Banking</span>
+                    </button>
 
-                  {/* Corporate Bank Transfer */}
-                  <label 
-                    onClick={() => setPaymentMethod('bank_transfer')}
-                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
-                      paymentMethod === 'bank_transfer' ? 'border-neutral-900 bg-neutral-50 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-neutral-800 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
-                      DB
-                    </div>
-                    <div>
-                      <p className="font-bold text-neutral-950">Corporate Bank Transfer</p>
-                      <p className="text-[10px] text-neutral-500">City Bank / BRAC Bank slip</p>
-                    </div>
-                  </label>
+                    <button
+                      type="button"
+                      onClick={() => handlePaymentTabChange('cod')}
+                      className={`py-2 px-2.5 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                        activePaymentTab === 'cod'
+                          ? 'bg-white text-neutral-950 shadow-xs'
+                          : 'text-neutral-600 hover:text-neutral-950'
+                      }`}
+                    >
+                      <Banknote className="w-3.5 h-3.5" />
+                      <span>Cash / Bank</span>
+                    </button>
+                  </div>
 
-                  {/* Cash on Delivery */}
-                  <label 
-                    onClick={() => setPaymentMethod('cod')}
-                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
-                      paymentMethod === 'cod' ? 'border-emerald-700 bg-emerald-50/50 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                      COD
+                  {/* EPS Channels Grid for Active Tab */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {channelsInTab.map((ch) => {
+                      const isSelected = paymentMethod === ch.id;
+                      return (
+                        <button
+                          key={ch.id}
+                          type="button"
+                          onClick={() => setPaymentMethod(ch.id)}
+                          className={`p-3 rounded-xl border-2 text-left cursor-pointer transition-all flex items-center gap-3 ${
+                            isSelected
+                              ? `${ch.borderActive} ${ch.bgTint} shadow-xs`
+                              : 'border-neutral-200 hover:border-neutral-300 bg-white'
+                          }`}
+                        >
+                          <PaymentChannelLogo method={ch.id} size="md" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="font-bold text-neutral-950 truncate">{ch.name}</p>
+                              {isSelected && <CheckCircle className="w-4 h-4 text-neutral-950 shrink-0" />}
+                            </div>
+                            <p className="text-[10px] text-neutral-500 truncate mt-0.5">{ch.description}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Selected Channel Confirmation Strip */}
+                  <div className="p-3 bg-neutral-100 rounded-xl border border-neutral-200 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <PaymentChannelLogo method={selectedChannel.id} size="sm" />
+                      <div className="min-w-0">
+                        <p className="font-bold text-neutral-950 truncate">
+                          Selected: {selectedChannel.name}
+                        </p>
+                        <p className="text-[10px] text-neutral-500 truncate">
+                          {selectedChannel.categoryLabel} · Atomic stock reservation on confirmation
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-neutral-950">Cash on Delivery (COD)</p>
-                      <p className="text-[10px] text-neutral-500">Pay cash upon parcel delivery</p>
-                    </div>
-                  </label>
+                    <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0" />
+                  </div>
                 </div>
-
-                <div className="p-3 bg-neutral-100 rounded-lg text-neutral-600 text-[11px] flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    Your order will be reserved atomically in our warehouse stock upon clicking Proceed.
-                  </span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Stepper Footer Controls */}
@@ -610,7 +638,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 onClick={handleProceedToPayment}
                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-neutral-400 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer shadow-md"
               >
-                <span>{paymentMethod === 'cod' ? 'Confirm Order (COD)' : `Pay ৳${grandTotal.toLocaleString()}`}</span>
+                <span>
+                  {paymentMethod === 'cod'
+                    ? 'Confirm Order (COD)'
+                    : `Pay ৳${grandTotal.toLocaleString()} · ${getPaymentChannelInfo(paymentMethod).shortName}`}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -618,7 +650,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         </div>
       </div>
 
-      {/* Payment Gateway Dialog Simulator */}
+      {/* EPS Payment Gateway Simulator */}
       {isGatewayOpen && (
         <PaymentGatewayModal
           isOpen={isGatewayOpen}

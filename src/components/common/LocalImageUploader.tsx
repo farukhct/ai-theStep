@@ -6,6 +6,9 @@ interface LocalImageUploaderProps {
   onImagesUploaded: (dataUrls: string[]) => void;
   multiple?: boolean;
   maxFiles?: number;
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number;
   label?: string;
   description?: string;
 }
@@ -14,6 +17,9 @@ export const LocalImageUploader: React.FC<LocalImageUploaderProps> = ({
   onImagesUploaded,
   multiple = true,
   maxFiles = 8,
+  maxWidth = 960,
+  maxHeight = 1200,
+  quality = 0.78,
   label = 'Upload from Local Drive',
   description = 'Supports PNG, JPG, WebP, AVIF, SVG (Auto-optimized for e-commerce catalog)'
 }) => {
@@ -24,7 +30,7 @@ export const LocalImageUploader: React.FC<LocalImageUploaderProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleProcessFiles = async (files: FileList | File[]) => {
-    const fileList = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const fileList = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, maxFiles);
     
     if (fileList.length === 0) {
       setErrorMsg('No valid image files found in selection.');
@@ -45,9 +51,9 @@ export const LocalImageUploader: React.FC<LocalImageUploaderProps> = ({
       for (const file of fileList) {
         try {
           const res = await optimizeLocalImage(file, {
-            maxWidth: 1200,
-            maxHeight: 1500,
-            quality: 0.85
+            maxWidth,
+            maxHeight,
+            quality
           });
           successfulResults.push(res);
           newUrls.push(res.dataUrl);

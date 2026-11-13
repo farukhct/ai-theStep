@@ -1,6 +1,7 @@
 import React from 'react';
 import { Printer, Download, X, CheckCircle, ShieldCheck } from 'lucide-react';
 import { Order } from '../../types';
+import { getPaymentChannelName } from '../../config/epsPaymentOptions';
 
 interface InvoiceModalProps {
   order: Order | null;
@@ -47,13 +48,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
           <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-b border-neutral-200 pb-8">
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black tracking-widest text-neutral-950 font-serif-heading">AURA</span>
-                <span className="text-xs font-bold tracking-widest text-neutral-500 uppercase">ATELIER LTD</span>
+                <span className="text-3xl font-black tracking-tight text-[#ff4300]">TheSteps</span>
+                <span className="text-xs font-bold tracking-widest text-[#292933] uppercase">BANGLADESH</span>
               </div>
-              <p className="text-xs text-neutral-500 mt-1">Premium Garments & Fashion Commerce</p>
+              <p className="text-xs text-neutral-500 mt-1">The Ultimate Online Shopping BD Experience</p>
               <p className="text-xs text-neutral-500">BIN / Tax ID: 004918239-0101</p>
-              <p className="text-xs text-neutral-500">Gulshan Avenue, Dhaka-1212, Bangladesh</p>
-              <p className="text-xs text-neutral-500">+880 9612-445566 | support@auragarments.bd</p>
+              <p className="text-xs text-neutral-500">Horogram Bazar, Rajpara, Rajshahi · Dhaka Hub: Uttara Sector-11</p>
+              <p className="text-xs text-neutral-500">01326052866 | support@thesteps.com.bd</p>
             </div>
 
             <div className="sm:text-right">
@@ -90,7 +91,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
             <div className="sm:text-right">
               <h5 className="font-bold text-neutral-400 uppercase tracking-wider mb-2">Payment Breakdown:</h5>
               <p className="text-neutral-700">
-                Method: <span className="font-bold uppercase text-neutral-950">{order.paymentMethod}</span>
+                Method: <span className="font-bold text-neutral-950">{getPaymentChannelName(order.paymentMethod)}</span>
               </p>
               {order.transactionId && (
                 <p className="text-neutral-700 font-mono">
@@ -169,8 +170,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
 
           {/* Footer note */}
           <div className="mt-12 pt-6 border-t border-neutral-200 text-center text-[11px] text-neutral-500">
-            <p className="font-semibold text-neutral-700">Thank you for choosing AURA ATELIER garments.</p>
-            <p className="mt-0.5">For exchange or inquiries, visit auragarments.bd or call +880 9612-445566 within 7 days of delivery.</p>
+            <p className="font-semibold text-neutral-700">Thank you for shopping with TheSteps Bangladesh (thesteps.com.bd).</p>
+            <p className="mt-0.5">For exchange or inquiries, email support@thesteps.com.bd or call 01326052866 (9am-6pm) within 7 days of delivery.</p>
             <p className="text-[10px] text-neutral-400 mt-2 font-mono">This is an authenticated computer-generated invoice requiring no physical signature.</p>
           </div>
         </div>

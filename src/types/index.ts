@@ -1,18 +1,42 @@
 export type UserRole = 
   | 'superadmin' 
   | 'admin' 
+  | 'seller'
   | 'product_manager' 
   | 'inventory_manager' 
   | 'order_manager' 
   | 'accountant' 
   | 'customer';
 
+export type PaymentCategory = 'cards' | 'internet_banking' | 'mobile_banking' | 'cod';
+
 export type PaymentMethod = 
+  // Mobile Banking (Mobile Financial Services)
   | 'bkash' 
   | 'nagad' 
+  | 'rocket'
+  | 'ok_wallet'
+  | 'meghna_pay'
+  | 'sheba_pay'
+  | 'islamic_wallet'
+  | 'upay'
+  | 'tap'
+  | 'mcash'
+  // Cards
+  | 'visa'
+  | 'mastercard'
+  | 'amex'
+  | 'dbbl_visa'
+  | 'dbbl_master'
+  | 'card'
+  // Internet Banking
+  | 'southeast_bank'
+  | 'meghna_bank'
+  | 'islami_bank'
+  | 'al_arafah_bank'
   | 'sonali' 
-  | 'card' 
   | 'bank_transfer' 
+  // Offline
   | 'cod';
 
 export type PaymentStatus = 
@@ -44,12 +68,12 @@ export type InventoryTransactionType =
   | 'damaged_stock'
   | 'cancellation';
 
-export type GarmentSize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL' | 'Free';
+export type GarmentSize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL' | 'Free' | 'Standard';
 
 export interface ProductVariant {
   id: string;
   sku: string;
-  size: GarmentSize;
+  size: GarmentSize | string;
   color: string;
   colorHex: string;
   purchasePrice: number; // Cost of goods sold (COGS)
@@ -77,11 +101,13 @@ export interface Product {
   category: string;
   subcategory: string;
   brand: string;
+  shopName?: string;
   description: string;
   images: string[];
-  fabric: string; // e.g. 100% Combed Cotton
-  material: string; // e.g. Single Jersey
-  gsm?: number; // e.g. 220 GSM
+  fabric: string; // Spec highlight line 1 (e.g. Material / Processor / Formula)
+  material: string; // Spec highlight line 2 (e.g. Build / Origin / Weave)
+  warranty?: string; // e.g. 1 Year Brand Warranty
+  gsm?: number;
   weight?: string;
   regularPrice: number;
   discountedPrice: number;
@@ -91,6 +117,12 @@ export interface Product {
   isFeatured: boolean;
   isNewArrival: boolean;
   isBestSeller: boolean;
+  isFlashDeal?: boolean;
+  flashStockLeft?: number;
+  flashSoldCount?: number;
+  allowBid?: boolean;
+  minBidPrice?: number;
+  freeDelivery?: boolean;
   variants: ProductVariant[];
   rating: number;
   reviewsCount: number;
@@ -99,12 +131,29 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface ProductBid {
+  id: string;
+  productId: string;
+  productName: string;
+  productImage: string;
+  originalPrice: number;
+  bidAmount: number;
+  quantity: number;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  note?: string;
+  status: 'pending' | 'accepted' | 'countered' | 'declined';
+  counterAmount?: number;
+  createdAt: string;
+}
+
 export interface BangladeshAddress {
   fullName: string;
   phone: string;
   altPhone?: string;
   email: string;
-  division: string; // Dhaka, Chittagong, Sylhet, Rajshahi, Khulna, Barisal, Rangpur, Mymensingh
+  division: string;
   district: string;
   upazila: string;
   detailedAddress: string;
@@ -117,7 +166,7 @@ export interface CartItem {
   productName: string;
   variantId: string;
   variantSku: string;
-  size: GarmentSize;
+  size: GarmentSize | string;
   color: string;
   image: string;
   regularPrice: number;
@@ -132,7 +181,7 @@ export interface OrderItem {
   variantId: string;
   variantSku: string;
   name: string;
-  size: GarmentSize;
+  size: GarmentSize | string;
   color: string;
   image: string;
   price: number;
@@ -207,7 +256,7 @@ export interface PurchaseOrderItem {
   variantId: string;
   variantSku: string;
   productName: string;
-  size: GarmentSize;
+  size: GarmentSize | string;
   color: string;
   quantity: number;
   unitCost: number;
@@ -255,17 +304,21 @@ export interface UserProfile {
   displayName: string;
   photoURL?: string;
   phoneNumber?: string;
+  shopName?: string;
   role: UserRole;
   mfaEnabled: boolean;
   mfaMethod: 'sms' | 'email' | 'totp' | 'none';
   addresses?: BangladeshAddress[];
   savedWishlist?: string[];
+  collectedVouchers?: string[];
   createdAt: string;
 }
 
 export interface Coupon {
   id: string;
   code: string;
+  title?: string;
+  shopName?: string;
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   minOrderAmount: number;
@@ -274,6 +327,7 @@ export interface Coupon {
   usageLimit: number;
   usageCount: number;
   isActive: boolean;
+  terms?: string;
 }
 
 export interface AuditLog {

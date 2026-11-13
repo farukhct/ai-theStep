@@ -26,7 +26,7 @@ export const GdprModal: React.FC<GdprModalProps> = ({ isOpen, onClose }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `AURA_GDPR_Data_Export_${userEmail}_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `TheSteps_GDPR_Data_Export_${userEmail}_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
     addToast('Data Exported', 'Your personal data package has been downloaded.', 'success');
@@ -63,7 +63,7 @@ export const GdprModal: React.FC<GdprModalProps> = ({ isOpen, onClose }) => {
             <div>
               <h4 className="font-bold text-emerald-950 text-sm">International Privacy Standard Compliance</h4>
               <p className="text-emerald-800 mt-1 leading-relaxed">
-                AURA ATELIER complies with the General Data Protection Regulation (GDPR) and SOC2 Trust Services Criteria for security, confidentiality, and processing integrity.
+                TheSteps Bangladesh complies with the General Data Protection Regulation (GDPR) and SOC2 Trust Services Criteria for security, confidentiality, and processing integrity.
               </p>
             </div>
           </div>

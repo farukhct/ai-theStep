@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Printer, ArrowRight, Package, MapPin, Truck, ShieldCheck } from 'lucide-react';
 import { Order } from '../../types';
+import { getPaymentChannelName } from '../../config/epsPaymentOptions';
 
 interface OrderSuccessModalProps {
   order: Order | null;
@@ -28,13 +29,13 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
         {/* Heading */}
         <div className="space-y-1.5">
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-            {order.paymentStatus === 'paid' ? 'PAYMENT AUTHORIZED' : 'ORDER CONFIRMED (COD)'}
+            {order.paymentStatus === 'paid' ? 'PAYMENT AUTHORIZED (EPS)' : 'ORDER CONFIRMED'}
           </span>
           <h3 className="text-2xl font-black text-neutral-950 font-serif-heading">
             Order Placed Successfully!
           </h3>
           <p className="text-xs text-neutral-500">
-            Thank you, {order.customerName}. Your garment shipment is queued for packing.
+            Thank you, {order.customerName}. Your TheSteps shipment is queued for packing.
           </p>
         </div>
 
@@ -52,7 +53,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
           <div className="flex justify-between items-center">
             <span className="text-neutral-500">Payment Channel:</span>
-            <span className="font-bold uppercase text-neutral-900">{order.paymentMethod}</span>
+            <span className="font-bold text-neutral-900">{getPaymentChannelName(order.paymentMethod)}</span>
           </div>
 
           {order.transactionId && (

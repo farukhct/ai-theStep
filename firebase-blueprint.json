@@ -2,17 +2,31 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "User profile with authentication and role-based permissions",
+      "description": "SmartDeal user profile with authentication, seller store metadata, and role-based permissions",
       "type": "object",
       "properties": {
-        "uid": { "type": "string" },
-        "email": { "type": "string" },
-        "displayName": { "type": "string" },
-        "phoneNumber": { "type": "string" },
-        "role": { "type": "string", "enum": ["customer", "admin", "superadmin", "inventory_manager", "order_manager", "accountant"] },
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 200 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "photoURL": { "type": "string", "maxLength": 200000 },
+        "phoneNumber": { "type": "string", "maxLength": 30 },
+        "shopName": { "type": "string", "maxLength": 120 },
+        "role": {
+          "type": "string",
+          "enum": [
+            "customer",
+            "seller",
+            "admin",
+            "superadmin",
+            "product_manager",
+            "inventory_manager",
+            "order_manager",
+            "accountant"
+          ]
+        },
         "mfaEnabled": { "type": "boolean" },
         "mfaMethod": { "type": "string", "enum": ["sms", "email", "totp", "none"] },
-        "createdAt": { "type": "string" }
+        "createdAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["uid", "email", "role"]
     },
@@ -21,25 +35,26 @@
       "description": "Trusted administrative user lookup",
       "type": "object",
       "properties": {
-        "uid": { "type": "string" },
-        "email": { "type": "string" },
-        "role": { "type": "string" },
-        "addedAt": { "type": "string" }
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "maxLength": 40 },
+        "addedAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["uid", "email", "role"]
     },
     "Product": {
       "title": "Product",
-      "description": "Garments product catalog item with multi-variant stock management",
+      "description": "SmartDeal marketplace product catalog item with multi-variant stock, flash deals, and bidding support",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
+        "id": { "type": "string", "maxLength": 128 },
         "name": { "type": "string", "maxLength": 200 },
         "sku": { "type": "string", "maxLength": 100 },
-        "slug": { "type": "string", "maxLength": 200 },
-        "category": { "type": "string" },
-        "subcategory": { "type": "string" },
-        "brand": { "type": "string" },
+        "slug": { "type": "string", "maxLength": 220 },
+        "category": { "type": "string", "maxLength": 80 },
+        "subcategory": { "type": "string", "maxLength": 80 },
+        "brand": { "type": "string", "maxLength": 100 },
+        "shopName": { "type": "string", "maxLength": 120 },
         "description": { "type": "string", "maxLength": 5000 },
         "images": { "type": "array" },
         "regularPrice": { "type": "number" },
@@ -50,25 +65,30 @@
         "isFeatured": { "type": "boolean" },
         "isNewArrival": { "type": "boolean" },
         "isBestSeller": { "type": "boolean" },
-        "fabric": { "type": "string" },
-        "material": { "type": "string" },
-        "weight": { "type": "string" },
+        "isFlashDeal": { "type": "boolean" },
+        "allowBid": { "type": "boolean" },
+        "freeDelivery": { "type": "boolean" },
+        "fabric": { "type": "string", "maxLength": 200 },
+        "material": { "type": "string", "maxLength": 200 },
+        "warranty": { "type": "string", "maxLength": 120 },
+        "weight": { "type": "string", "maxLength": 60 },
         "variants": { "type": "array" },
-        "createdAt": { "type": "string" },
-        "updatedAt": { "type": "string" }
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "name", "sku", "category", "regularPrice", "status"]
     },
     "Order": {
       "title": "Order",
-      "description": "Customer purchase transaction record with payment and fulfillment tracking",
+      "description": "Customer purchase transaction record with EPS payment and courier fulfillment tracking",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "customerId": { "type": "string" },
-        "customerName": { "type": "string" },
-        "contactNumber": { "type": "string" },
-        "email": { "type": "string" },
+        "id": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 64 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 120 },
+        "contactNumber": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 200 },
         "shippingAddress": { "type": "object" },
         "billingAddress": { "type": "object" },
         "items": { "type": "array" },
@@ -76,51 +96,97 @@
         "discount": { "type": "number" },
         "shippingFee": { "type": "number" },
         "grandTotal": { "type": "number" },
-        "paymentMethod": { "type": "string", "enum": ["bkash", "nagad", "sonali", "card", "bank_transfer", "cod"] },
+        "paymentMethod": {
+          "type": "string",
+          "enum": [
+            "bkash", "nagad", "rocket", "ok_wallet", "meghna_pay", "sheba_pay",
+            "islamic_wallet", "upay", "tap", "mcash", "visa", "mastercard",
+            "amex", "dbbl_visa", "dbbl_master", "southeast_bank", "meghna_bank",
+            "islami_bank", "al_arafah_bank", "sonali", "card", "bank_transfer", "cod"
+          ]
+        },
         "paymentStatus": { "type": "string", "enum": ["pending", "processing", "paid", "failed", "refunded"] },
-        "orderStatus": { "type": "string", "enum": ["pending_payment", "paid", "confirmed", "processing", "packed", "shipped", "delivered", "cancelled", "returned"] },
-        "transactionId": { "type": "string" },
-        "trackingNumber": { "type": "string" },
-        "orderDate": { "type": "string" },
-        "remarks": { "type": "string" },
+        "orderStatus": {
+          "type": "string",
+          "enum": ["pending_payment", "paid", "confirmed", "processing", "packed", "shipped", "delivered", "cancelled", "returned", "refunded"]
+        },
+        "transactionId": { "type": "string", "maxLength": 128 },
+        "trackingNumber": { "type": "string", "maxLength": 128 },
+        "orderDate": { "type": "string", "maxLength": 64 },
+        "remarks": { "type": "string", "maxLength": 1000 },
         "statusHistory": { "type": "array" }
       },
-      "required": ["id", "customerName", "contactNumber", "items", "grandTotal", "paymentMethod", "orderStatus"]
+      "required": ["id", "customerId", "customerName", "contactNumber", "items", "grandTotal", "paymentMethod", "orderStatus"]
+    },
+    "ProductBid": {
+      "title": "ProductBid",
+      "description": "Customer price bid offer on SmartDeal eligible listings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "productName": { "type": "string", "maxLength": 200 },
+        "originalPrice": { "type": "number" },
+        "bidAmount": { "type": "number" },
+        "quantity": { "type": "number" },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 120 },
+        "customerPhone": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "countered", "declined"] },
+        "counterAmount": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "productId", "bidAmount", "customerId", "status", "createdAt"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "SmartDeal Voucher Center promo coupon",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 40 },
+        "discountType": { "type": "string", "enum": ["percentage", "fixed"] },
+        "discountValue": { "type": "number" },
+        "minOrderAmount": { "type": "number" },
+        "expiryDate": { "type": "string", "maxLength": 40 },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "code", "discountType", "discountValue", "isActive"]
     },
     "InventoryTransaction": {
       "title": "InventoryTransaction",
       "description": "Traceable stock ledger movement record",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "productId": { "type": "string" },
-        "productName": { "type": "string" },
-        "variantSku": { "type": "string" },
+        "id": { "type": "string", "maxLength": 128 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "productName": { "type": "string", "maxLength": 200 },
+        "variantSku": { "type": "string", "maxLength": 100 },
         "transactionType": { "type": "string", "enum": ["opening_stock", "purchase", "sales", "sales_return", "purchase_return", "stock_adjustment", "damaged_stock", "cancellation"] },
         "quantityIn": { "type": "number" },
         "quantityOut": { "type": "number" },
         "previousQuantity": { "type": "number" },
         "newQuantity": { "type": "number" },
-        "referenceNumber": { "type": "string" },
-        "remarks": { "type": "string" },
-        "transactionDate": { "type": "string" },
-        "userId": { "type": "string" }
+        "referenceNumber": { "type": "string", "maxLength": 100 },
+        "remarks": { "type": "string", "maxLength": 500 },
+        "transactionDate": { "type": "string", "maxLength": 64 },
+        "userId": { "type": "string", "maxLength": 128 }
       },
       "required": ["id", "productId", "transactionType", "transactionDate"]
     },
     "Supplier": {
       "title": "Supplier",
-      "description": "Garments fabric and manufacturer vendor details",
+      "description": "Marketplace vendor and manufacturer details",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "contactPerson": { "type": "string" },
-        "phoneNumber": { "type": "string" },
-        "email": { "type": "string" },
-        "companyName": { "type": "string" },
-        "address": { "type": "string" },
-        "status": { "type": "string" }
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "contactPerson": { "type": "string", "maxLength": 120 },
+        "phoneNumber": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 200 },
+        "companyName": { "type": "string", "maxLength": 120 },
+        "address": { "type": "string", "maxLength": 300 },
+        "status": { "type": "string", "maxLength": 30 }
       },
       "required": ["id", "name", "phoneNumber"]
     },
@@ -129,14 +195,14 @@
       "description": "Operating and administrative business expenses",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "category": { "type": "string" },
-        "description": { "type": "string" },
+        "id": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 60 },
+        "description": { "type": "string", "maxLength": 500 },
         "amount": { "type": "number" },
-        "date": { "type": "string" },
-        "paymentMethod": { "type": "string" },
-        "referenceNumber": { "type": "string" },
-        "createdBy": { "type": "string" }
+        "date": { "type": "string", "maxLength": 40 },
+        "paymentMethod": { "type": "string", "maxLength": 60 },
+        "referenceNumber": { "type": "string", "maxLength": 80 },
+        "createdBy": { "type": "string", "maxLength": 120 }
       },
       "required": ["id", "category", "amount", "date"]
     },
@@ -145,14 +211,14 @@
       "description": "Security and compliance audit trail entry",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "action": { "type": "string" },
-        "entity": { "type": "string" },
-        "entityId": { "type": "string" },
-        "details": { "type": "string" },
-        "performedBy": { "type": "string" },
-        "performedByName": { "type": "string" },
-        "timestamp": { "type": "string" }
+        "id": { "type": "string", "maxLength": 128 },
+        "action": { "type": "string", "maxLength": 80 },
+        "entity": { "type": "string", "maxLength": 80 },
+        "entityId": { "type": "string", "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 1000 },
+        "performedBy": { "type": "string", "maxLength": 200 },
+        "performedByName": { "type": "string", "maxLength": 120 },
+        "timestamp": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "action", "timestamp"]
     }
@@ -160,7 +226,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profile with role and settings"
+      "description": "User profile with role, addresses, and settings"
     },
     "/admins/{adminId}": {
       "schema": "Admin",
@@ -168,11 +234,19 @@
     },
     "/products/{productId}": {
       "schema": "Product",
-      "description": "Garments inventory product catalog"
+      "description": "SmartDeal product catalog"
     },
     "/orders/{orderId}": {
       "schema": "Order",
-      "description": "Order records and payment status"
+      "description": "Order records and EPS payment status"
+    },
+    "/bids/{bidId}": {
+      "schema": "ProductBid",
+      "description": "Customer price offers on bid-enabled products"
+    },
+    "/coupons/{couponId}": {
+      "schema": "Coupon",
+      "description": "Storewide & shop promotional vouchers"
     },
     "/inventory_transactions/{txId}": {
       "schema": "InventoryTransaction",
@@ -180,7 +254,7 @@
     },
     "/suppliers/{supplierId}": {
       "schema": "Supplier",
-      "description": "Supplier directories"
+      "description": "Supplier & vendor directories"
     },
     "/expenses/{expenseId}": {
       "schema": "Expense",
