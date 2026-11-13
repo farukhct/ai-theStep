@@ -9,7 +9,8 @@ import {
   Workflow, 
   Copy, 
   Check, 
-  ExternalLink 
+  BookOpen,
+  Download
 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 
@@ -18,10 +19,42 @@ interface DevDocsModalProps {
   onClose: () => void;
 }
 
+const PRISMA_SKILL_ASSET_PATH = '/assets/aistudio/SKILL_b9444db2.md';
+
 export const DevDocsModal: React.FC<DevDocsModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'architecture' | 'schema' | 'api' | 'concurrency' | 'deployment'>('architecture');
+  const [activeTab, setActiveTab] = useState<'architecture' | 'schema' | 'api' | 'concurrency' | 'deployment' | 'skill'>('architecture');
   const { addToast } = useNotification();
   const [copied, setCopied] = useState(false);
+  const [skillContent, setSkillContent] = useState<string>('');
+  const [skillLoading, setSkillLoading] = useState<boolean>(false);
+  const [skillError, setSkillError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!isOpen || activeTab !== 'skill' || skillContent) return;
+    let cancelled = false;
+    setSkillLoading(true);
+    setSkillError(null);
+    fetch(PRISMA_SKILL_ASSET_PATH)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then((text) => {
+        if (!cancelled) {
+          setSkillContent(text);
+          setSkillLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setSkillError(err instanceof Error ? err.message : 'Failed to load SKILL.md');
+          setSkillLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeTab, skillContent]);
 
   if (!isOpen) return null;
 
@@ -94,12 +127,21 @@ export const DevDocsModal: React.FC<DevDocsModalProps> = ({ isOpen, onClose }) =
           </button>
           <button
             onClick={() => setActiveTab('deployment')}
-            className={`pb-3 border-b-2 cursor-pointer transition-colors flex items-center gap-2 ${
+            className={`pb-3 border-b-2 cursor-pointer transition-colors flex items-center gap-2 shrink-0 ${
               activeTab === 'deployment' ? 'border-neutral-900 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-800'
             }`}
           >
             <Terminal className="w-4 h-4" />
             <span>Deployment Guide</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('skill')}
+            className={`pb-3 border-b-2 cursor-pointer transition-colors flex items-center gap-2 shrink-0 ${
+              activeTab === 'skill' ? 'border-neutral-900 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Prisma Composer Skill</span>
           </button>
         </div>
 
@@ -404,6 +446,58 @@ npm run preview
 docker build -t aura-garments:latest .
 docker run -p 3000:3000 -e PORT=3000 aura-garments:latest`}</pre>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'skill' && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-950">
+                    Prisma Composer Core Concepts (SKILL.md)
+                  </h4>
+                  <p className="text-neutral-600 text-xs mt-0.5">
+                    @prisma/composer v0.38.0 reference specification saved at <code className="bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-900">skills/prisma-composer-core-concepts/SKILL.md</code>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {skillContent && (
+                    <button
+                      onClick={() => handleCopy(skillContent)}
+                      className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>Copy Markdown</span>
+                    </button>
+                  )}
+                  <a
+                    href={PRISMA_SKILL_ASSET_PATH}
+                    download="SKILL.md"
+                    className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download SKILL.md</span>
+                  </a>
+                </div>
+              </div>
+
+              {skillLoading && (
+                <div className="p-6 bg-neutral-50 rounded-xl border border-neutral-200 text-neutral-500 text-center">
+                  Loading SKILL.md reference...
+                </div>
+              )}
+
+              {skillError && (
+                <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-200">
+                  Failed to load skill document ({skillError}). You can still download it directly via the button above.
+                </div>
+              )}
+
+              {skillContent && (
+                <div className="bg-neutral-950 text-neutral-200 p-4 rounded-xl font-mono text-[11px] leading-relaxed border border-neutral-800 overflow-x-auto max-h-[52vh] overflow-y-auto">
+                  <pre className="whitespace-pre-wrap break-words">{skillContent}</pre>
+                </div>
+              )}
             </div>
           )}
         </div>
