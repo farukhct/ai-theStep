@@ -9,11 +9,13 @@ import {
   ChevronDown,
   Ticket,
   Truck,
-  Store,
   Flame,
   CreditCard,
   Menu,
-  X
+  X,
+  LogIn,
+  UserPlus,
+  LogOut
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
@@ -24,7 +26,7 @@ import { GARMENT_CATEGORIES, POPULAR_SEARCH_KEYWORDS } from '../../config/consta
 interface HeaderProps {
   onOpenCart: () => void;
   onOpenNotifications: () => void;
-  onOpenAuth: () => void;
+  onOpenAuth: (mode?: 'signin' | 'register') => void;
   onOpenPortal: () => void;
   onOpenDashboard: () => void;
   onOpenVoucherCenter: () => void;
@@ -53,9 +55,10 @@ export const Header: React.FC<HeaderProps> = ({
   setSearchQuery
 }) => {
   const { language, setLanguage, t } = useLanguage();
-  const { currentUser, isManager, switchDemoRole } = useAuth();
+  const { currentUser, isManager, signOut } = useAuth();
   const { itemCount, grandTotal } = useCart();
   const { unreadCount } = useNotification();
+  const { addToast } = useNotification();
 
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showPopularSearch, setShowPopularSearch] = useState(false);
@@ -72,11 +75,9 @@ export const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSellWithUs = () => {
-    if (!isManager) {
-      switchDemoRole('seller');
-    }
-    onOpenDashboard();
+  const handleSignOut = async () => {
+    await signOut();
+    addToast('Signed Out', 'You have been signed out of your TheSteps account.', 'info');
   };
 
   return (
@@ -109,22 +110,33 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{t('trackOrder')}</span>
             </button>
 
-            <button
-              type="button"
-              onClick={handleSellWithUs}
-              className="hidden sm:inline-flex items-center gap-1 text-neutral-600 hover:text-[#ff4300] whitespace-nowrap cursor-pointer"
-            >
-              <Store className="w-3.5 h-3.5" />
-              <span>Sell with us</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenAuth}
-              className="hidden sm:inline text-neutral-700 hover:text-[#ff4300] font-medium whitespace-nowrap cursor-pointer"
-            >
-              {currentUser ? `${currentUser.displayName.split(' ')[0]} · Switch Role` : 'Login / Sign up'}
-            </button>
+            {!currentUser ? (
+              <div className="hidden sm:flex items-center gap-2 text-neutral-600">
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('signin')}
+                  className="hover:text-[#ff4300] font-semibold whitespace-nowrap cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <span className="text-neutral-300">/</span>
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('register')}
+                  className="text-[#ff4300] hover:text-[#d93800] font-semibold whitespace-nowrap cursor-pointer"
+                >
+                  Register
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenPortal}
+                className="hidden sm:inline text-neutral-700 hover:text-[#ff4300] font-medium whitespace-nowrap cursor-pointer"
+              >
+                Hello, {currentUser.displayName.split(' ')[0]}
+              </button>
+            )}
 
             {/* EN | বাং Switcher */}
             <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded px-1.5 py-0.5">
@@ -150,9 +162,9 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main Navigation Row */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-3 sm:gap-5">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-5">
         {/* Left: Mobile Menu + Brand SVG + Categories Mega Dropdown */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             type="button"
             onClick={() => setShowMobileMenu(!showMobileMenu)}
@@ -171,14 +183,14 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2 cursor-pointer text-left"
           >
             {/* TheSteps Brand Mark SVG */}
-            <svg width="34" height="34" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 36 36" fill="none" aria-hidden="true" className="shrink-0">
               <rect width="36" height="36" rx="7" fill="#ff4300" />
               <rect x="8" y="21" width="6" height="6" rx="1.2" fill="white" />
               <rect x="15" y="15" width="6" height="12" rx="1.2" fill="white" />
               <rect x="22" y="9" width="6" height="18" rx="1.2" fill="white" />
             </svg>
             <div className="leading-none">
-              <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#292933]">
+              <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-[#292933]">
                 The<span className="text-[#ff4300]">Steps</span>
               </span>
               <span className="block text-[9px] font-medium text-neutral-500 tracking-wide">
@@ -232,7 +244,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Center: Squared Search Bar + "Popular Right Now" Trending Dropdown */}
-        <div ref={searchBoxRef} className="flex-1 max-w-2xl relative hidden sm:block">
+        <div ref={searchBoxRef} className="flex-1 max-w-xl relative hidden sm:block">
           <div className="flex items-stretch border-2 border-[#ff4300] rounded-[5px] overflow-hidden bg-white">
             <input
               type="text"
@@ -300,13 +312,13 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Right Controls: Seller/Admin, Notifications, My Account, Cart */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Right Controls: Admin (Managers Only), Notifications, Sign In / Register OR Account, Cart */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {isManager && (
             <button
               type="button"
               onClick={onOpenDashboard}
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 bg-[#292933] hover:bg-[#1b1b28] text-white text-xs font-semibold rounded-[5px] cursor-pointer transition-colors whitespace-nowrap"
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 bg-[#292933] hover:bg-[#1b1b28] text-white text-xs font-semibold rounded-[5px] cursor-pointer transition-colors whitespace-nowrap shrink-0"
             >
               <Layers className="w-3.5 h-3.5 text-[#ff4300]" />
               <span>{currentUser?.role === 'seller' ? t('sellerPanel') : t('dashboard')}</span>
@@ -316,7 +328,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenNotifications}
-            className="relative p-2 text-[#292933] hover:text-[#ff4300] rounded-full hover:bg-neutral-100 cursor-pointer transition-colors"
+            className="relative p-2 text-[#292933] hover:text-[#ff4300] rounded-full hover:bg-neutral-100 cursor-pointer transition-colors shrink-0"
             title="Notifications"
           >
             <Bell className="w-5 h-5" />
@@ -327,33 +339,66 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={currentUser ? onOpenPortal : onOpenAuth}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-[5px] hover:bg-neutral-100 text-[#292933] cursor-pointer transition-colors"
-            title="My TheSteps Account"
-          >
-            <div className="w-7 h-7 rounded-full bg-[#E6F4FB] border border-[#008ED2]/30 flex items-center justify-center text-xs font-bold text-[#008ED2] overflow-hidden shrink-0">
-              {currentUser?.photoURL ? (
-                <img src={currentUser.photoURL} alt={currentUser.displayName} className="w-full h-full object-cover" />
-              ) : currentUser?.displayName ? (
-                currentUser.displayName.charAt(0)
-              ) : (
-                <User className="w-4 h-4" />
-              )}
+          {!currentUser ? (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => onOpenAuth('signin')}
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-[5px] border border-neutral-300 hover:border-[#ff4300] bg-white text-[#292933] hover:text-[#ff4300] text-[11px] sm:text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenAuth('register')}
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-[5px] bg-[#292933] hover:bg-[#1b1b28] text-white text-[11px] sm:text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-[#ff4300]" />
+                <span>Register</span>
+              </button>
             </div>
-            <div className="text-left hidden xl:block leading-tight">
-              <span className="block text-[10px] text-neutral-500">Account</span>
-              <span className="block text-xs font-semibold truncate max-w-[90px]">
-                {currentUser ? currentUser.displayName.split(' ')[0] : t('login')}
-              </span>
+          ) : (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={onOpenPortal}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-[5px] hover:bg-neutral-100 text-[#292933] cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                title="My TheSteps Account"
+              >
+                <div className="w-7 h-7 rounded-full bg-[#E6F4FB] border border-[#008ED2]/30 flex items-center justify-center text-xs font-bold text-[#008ED2] overflow-hidden shrink-0">
+                  {currentUser.photoURL ? (
+                    <img src={currentUser.photoURL} alt={currentUser.displayName} className="w-full h-full object-cover" />
+                  ) : currentUser.displayName ? (
+                    currentUser.displayName.charAt(0).toUpperCase()
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
+                </div>
+                <div className="text-left hidden xl:block leading-tight">
+                  <span className="block text-[10px] text-neutral-500">My Account</span>
+                  <span className="block text-xs font-semibold truncate max-w-[90px]">
+                    {currentUser.displayName.split(' ')[0]}
+                  </span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSignOut}
+                title="Sign Out"
+                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-2 rounded-[5px] border border-neutral-200 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 text-neutral-600 text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">Sign Out</span>
+              </button>
             </div>
-          </button>
+          )}
 
           <button
             type="button"
             onClick={onOpenCart}
-            className="flex items-center gap-2 px-3 py-2 bg-[#ff4300] hover:bg-[#d93800] text-white rounded-[5px] cursor-pointer transition-colors shadow-xs"
+            className="flex items-center gap-2 px-2.5 sm:px-3 py-2 bg-[#ff4300] hover:bg-[#d93800] text-white rounded-[5px] cursor-pointer transition-colors shadow-xs whitespace-nowrap shrink-0"
             title="Shopping Cart"
           >
             <div className="relative">
@@ -391,70 +436,126 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Quick Action Bar (Single-Line Nav Links) */}
       <div className="bg-[#292933] text-white text-xs overflow-x-auto no-scrollbar">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-9 flex items-center gap-6 whitespace-nowrap">
-          <button
-            type="button"
-            onClick={onScrollToFlashSale}
-            className="inline-flex items-center gap-1.5 font-semibold text-[#ff4300] hover:text-white cursor-pointer transition-colors"
-          >
-            <Flame className="w-3.5 h-3.5" />
-            <span>Flash Deals</span>
-          </button>
-          <button
-            type="button"
-            onClick={onOpenVoucherCenter}
-            className="inline-flex items-center gap-1.5 hover:text-[#ff4300] cursor-pointer transition-colors"
-          >
-            <Ticket className="w-3.5 h-3.5 text-[#EC1561]" />
-            <span>Voucher Center</span>
-          </button>
-          <button
-            type="button"
-            onClick={onOpenTrackOrder}
-            className="inline-flex items-center gap-1.5 hover:text-[#ff4300] cursor-pointer transition-colors"
-          >
-            <Truck className="w-3.5 h-3.5 text-[#008ED2]" />
-            <span>Track Order</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleSellWithUs}
-            className="inline-flex items-center gap-1.5 hover:text-[#ff4300] cursor-pointer transition-colors"
-          >
-            <Store className="w-3.5 h-3.5 text-neutral-300" />
-            <span>Seller Hub</span>
-          </button>
-          <button
-            type="button"
-            onClick={onOpenEpsOptions}
-            className="inline-flex items-center gap-1.5 hover:text-[#ff4300] cursor-pointer transition-colors"
-          >
-            <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-            <span>EPS Payment Options</span>
-          </button>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-9 flex items-center justify-between gap-6 whitespace-nowrap">
+          <div className="flex items-center gap-6">
+            <button
+              type="button"
+              onClick={onScrollToFlashSale}
+              className="inline-flex items-center gap-1.5 font-semibold text-[#ff4300] hover:text-white cursor-pointer transition-colors"
+            >
+              <Flame className="w-3.5 h-3.5" />
+              <span>Flash Deals</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenVoucherCenter}
+              className="inline-flex items-center gap-1.5 hover:text-[#ff4300] cursor-pointer transition-colors"
+            >
+              <Ticket className="w-3.5 h-3.5 text-[#EC1561]" />
+              <span>Voucher Center</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenTrackOrder}
+              className="inline-flex items-center gap-1.5 hover:text-[#ff4300] cursor-pointer transition-colors"
+            >
+              <Truck className="w-3.5 h-3.5 text-[#008ED2]" />
+              <span>Track Order</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenEpsOptions}
+              className="inline-flex items-center gap-1.5 hover:text-[#ff4300] cursor-pointer transition-colors"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+              <span>EPS Payment Options</span>
+            </button>
+            {isManager && (
+              <button
+                type="button"
+                onClick={onOpenDashboard}
+                className="inline-flex items-center gap-1.5 text-amber-300 hover:text-white font-semibold cursor-pointer transition-colors"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>{currentUser?.role === 'seller' ? t('sellerPanel') : t('dashboard')}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Mobile Categories Drawer */}
+      {/* Mobile Categories & Account Drawer */}
       {showMobileMenu && (
-        <div className="lg:hidden border-t border-neutral-200 bg-white max-h-72 overflow-y-auto px-4 py-3 grid grid-cols-2 gap-2">
-          {GARMENT_CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => {
-                onSelectCategory(cat.id);
-                setShowMobileMenu(false);
-              }}
-              className={`text-left px-3 py-2 rounded text-xs cursor-pointer ${
-                selectedCategory === cat.id
-                  ? 'bg-[#ff4300] text-white font-semibold'
-                  : 'bg-neutral-50 text-[#292933] hover:bg-neutral-100'
-              }`}
-            >
-              {language === 'bn' ? cat.nameBn : cat.name}
-            </button>
-          ))}
+        <div className="lg:hidden border-t border-neutral-200 bg-white max-h-80 overflow-y-auto px-4 py-3 space-y-3">
+          {!currentUser ? (
+            <div className="grid grid-cols-2 gap-2 pb-2 border-b border-neutral-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onOpenAuth('signin');
+                }}
+                className="py-2 px-3 rounded border border-neutral-300 text-xs font-semibold text-[#292933] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onOpenAuth('register');
+                }}
+                className="py-2 px-3 rounded bg-[#ff4300] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Register</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-100 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onOpenPortal();
+                }}
+                className="font-semibold text-[#292933] cursor-pointer"
+              >
+                My Account ({currentUser.displayName})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  handleSignOut();
+                }}
+                className="text-rose-600 font-semibold cursor-pointer"
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            {GARMENT_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  onSelectCategory(cat.id);
+                  setShowMobileMenu(false);
+                }}
+                className={`text-left px-3 py-2 rounded text-xs cursor-pointer ${
+                  selectedCategory === cat.id
+                    ? 'bg-[#ff4300] text-white font-semibold'
+                    : 'bg-neutral-50 text-[#292933] hover:bg-neutral-100'
+                }`}
+              >
+                {language === 'bn' ? cat.nameBn : cat.name}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </header>

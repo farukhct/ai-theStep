@@ -7,7 +7,7 @@ import {
   deleteDoc,
   getDocs
 } from 'firebase/firestore';
-import { db, validateFirestoreConnection } from '../config/firebase';
+import { auth, db, validateFirestoreConnection } from '../config/firebase';
 import {
   Product,
   Order,
@@ -143,7 +143,8 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | null>(null);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, fbUser } = useAuth();
+  const { currentUser, isManager } = useAuth();
+  const fbUser = auth.currentUser;
   const { addToast, addNotification } = useNotification();
 
   const [products, setProducts] = useState<Product[]>(() => {
@@ -337,7 +338,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return;
         }
         const productsSnap = await getDocs(collection(db, 'products'));
-        if (productsSnap.empty && fbUser) {
+        if (productsSnap.empty && fbUser && isManager) {
           for (const p of INITIAL_PRODUCTS) {
             await setDoc(doc(db, 'products', p.id), p);
           }
@@ -351,10 +352,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     syncFirestore();
     return () => { isMounted = false; };
-  }, [fbUser]);
+  }, [fbUser, isManager]);
 
   // --- Product Management ---
+  const assertManagerAccess = (actionName: string) => {
+    if (!isManager) {
+      addToast('Access Restricted', `Only authorized administrators can ${actionName}.`, 'error');
+      throw new Error(`Unauthorized: Customer accounts cannot ${actionName}.`);
+    }
+  };
+
   const addProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+    assertManagerAccess('add products');
     const id = `prod-${Date.now()}`;
     const newProduct: Product = {
       ...productData,
@@ -401,6 +410,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
+    assertManagerAccess('update products');
     const updatedTimestamp = new Date().toISOString();
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...updates, updatedAt: updatedTimestamp } : p))
@@ -419,6 +429,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteProduct = async (id: string) => {
+    assertManagerAccess('delete products');
     const toDelete = products.find((p) => p.id === id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
     addAuditLog('DELETE_PRODUCT', 'Product', id, `Deleted product ${toDelete?.name || id}`);
@@ -440,6 +451,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     type: 'stock_adjustment' | 'damaged_stock',
     reason: string
   ) => {
+    assertManagerAccess('adjust inventory stock');
     const product = products.find((p) => p.id === productId);
     if (!product) return;
     const variant = product.variants.find((v) => v.id === variantId);

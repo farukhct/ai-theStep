@@ -1,12 +1,23 @@
-export type UserRole = 
-  | 'superadmin' 
-  | 'admin' 
+export type UserRole =
+  | 'superadmin'
+  | 'administrator'
+  | 'admin'
+  | 'manager'
+  | 'staff'
   | 'seller'
-  | 'product_manager' 
-  | 'inventory_manager' 
-  | 'order_manager' 
-  | 'accountant' 
+  | 'product_manager'
+  | 'inventory_manager'
+  | 'order_manager'
+  | 'accountant'
   | 'customer';
+
+export type AccountStatus =
+  | 'active'
+  | 'pending_verification'
+  | 'inactive'
+  | 'suspended'
+  | 'locked'
+  | 'deactivated';
 
 export type PaymentCategory = 'cards' | 'internet_banking' | 'mobile_banking' | 'cod';
 
@@ -298,20 +309,184 @@ export interface Expense {
   createdBy: string;
 }
 
+export interface RoleSummary {
+  id: string;
+  slug: string;
+  name: string;
+  hierarchyLevel: number;
+}
+
 export interface UserProfile {
   uid: string;
+  id?: string;
+  username?: string;
   email: string;
   displayName: string;
+  fullName?: string;
+  designation?: string;
   photoURL?: string;
   phoneNumber?: string;
   shopName?: string;
   role: UserRole;
+  roles?: RoleSummary[];
+  permissions?: string[];
+  status?: AccountStatus;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  hasPassword?: boolean;
+  failedLoginAttempts?: number;
+  lockedUntil?: string | null;
+  lastLoginAt?: string | null;
+  lastLoginIp?: string | null;
+  lastLoginDevice?: string | null;
   mfaEnabled: boolean;
   mfaMethod: 'sms' | 'email' | 'totp' | 'none';
   addresses?: BangladeshAddress[];
   savedWishlist?: string[];
   collectedVouchers?: string[];
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface PermissionRecord {
+  id: string;
+  code: string;
+  category: string;
+  name: string;
+  description: string;
+  isCritical: boolean;
+}
+
+export interface RoleRecord {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  hierarchyLevel: number;
+  isSystem: boolean;
+  permissionIds: string[];
+  permissionCodes: string[];
+  userCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserSessionRecord {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  userFullName?: string;
+  username?: string;
+  deviceName: string;
+  browser: string;
+  os: string;
+  ipAddress: string;
+  locationHint: string;
+  isAdminSession: boolean;
+  mfaVerified: boolean;
+  isCurrent?: boolean;
+  lastActivityAt: string;
+  idleExpiresAt: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface LoginHistoryRecord {
+  id: string;
+  userId: string | null;
+  identifier: string;
+  username: string;
+  email: string;
+  success: boolean;
+  isAdminPortal: boolean;
+  ipAddress: string;
+  userAgent: string;
+  deviceName: string;
+  riskScore: number;
+  riskFlags: string[];
+  failureReason: string | null;
+  createdAt: string;
+}
+
+export interface SecurityEventRecord {
+  id: string;
+  userId: string | null;
+  eventType: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  title: string;
+  description: string;
+  ipAddress: string;
+  userAgent: string;
+  resolved: boolean;
+  resolvedBy: string | null;
+  createdAt: string;
+}
+
+export interface SecuritySettingsRecord {
+  id: string;
+  minPasswordLength: number;
+  adminMinPasswordLength: number;
+  passwordHistoryLimit: number;
+  maxLoginAttempts: number;
+  lockoutDurationMinutes: number;
+  accessTokenLifetimeMinutes: number;
+  refreshTokenLifetimeDays: number;
+  idleSessionTimeoutMinutes: number;
+  maxSessionLifetimeHours: number;
+  mfaEnforcement: 'superadmin_and_admin' | 'all_privileged' | 'optional';
+  requireEmailVerification: boolean;
+  requireMobileVerification: boolean;
+  passwordResetExpiryMinutes: number;
+  invitationExpiryHours: number;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export interface SecurityAuditLogRecord {
+  id: string;
+  userId: string | null;
+  username: string;
+  role: string;
+  action: string;
+  module: string;
+  targetRecordId: string | null;
+  previousValue: Record<string, unknown> | null;
+  newValue: Record<string, unknown> | null;
+  ipAddress: string;
+  userAgent: string;
+  timestamp: string;
+  result: 'success' | 'failure' | 'denied';
+  additionalContext: string;
+}
+
+export interface AdminInvitationRecord {
+  id: string;
+  email: string;
+  username: string;
+  fullName: string;
+  phoneNumber: string;
+  designation: string;
+  roleIds: string[];
+  roleNames: string[];
+  accountStatus: AccountStatus;
+  invitedBy: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface UserDashboardStats {
+  totalUsers: number;
+  totalAdministrators: number;
+  totalStaff: number;
+  totalCustomers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  suspendedUsers: number;
+  lockedUsers: number;
+  newlyRegisteredUsers: number;
+  recentLoginsCount: number;
 }
 
 export interface Coupon {

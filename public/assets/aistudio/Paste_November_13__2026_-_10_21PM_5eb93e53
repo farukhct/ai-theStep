@@ -1,0 +1,1019 @@
+# MASTER DEVELOPMENT PROMPT
+## Secure Authentication, Admin Panel & User Management System
+### React.js + TypeScript + Node.js + Express.js + PostgreSQL + Prisma ORM
+
+## 1. Developer Role
+
+Act as a Senior Cybersecurity Engineer, Full-Stack Developer, Authentication Architect, Database Engineer, and Enterprise Application Security Specialist.
+
+Develop a professional, secure, scalable, production-ready authentication and user management system for an e-commerce website.
+
+The entire implementation must focus exclusively on:
+
+1. Admin authentication
+2. Secure login and logout
+3. User management
+4. Role-based access control (RBAC)
+5. Permission management
+6. Admin account management
+7. Staff account management
+8. Customer account management
+9. Password and session management
+10. Security monitoring
+11. Audit logging
+12. Account protection
+
+
+
+## 2. Technology Stack
+
+### Frontend
+- React.js
+- TypeScript
+- Vite
+- React Router
+- Tailwind CSS
+- Axios
+- React Hook Form
+- Zod validation
+- TanStack Query
+- Lucide React icons
+
+### Backend
+- Node.js
+- Express.js
+- TypeScript
+- REST API
+- JWT authentication
+- Secure cookie-based session handling
+- Authentication and authorization middleware
+
+### Database
+- PostgreSQL or MySQL
+- Prisma ORM
+- Database migrations
+- Relational database architecture
+
+### Security Tools
+- Argon2id or bcrypt for password hashing
+- Helmet.js
+- CORS configuration
+- Rate limiting
+- CSRF protection where applicable
+- Input validation and sanitization
+- Secure HTTP headers
+- Audit logging
+
+React.js must never communicate directly with the database. All protected operations must go through the backend API.
+
+## 3. Authentication Architecture
+
+Develop a centralized authentication system with separate authentication flows for administrators, staff, and customers.
+
+### Admin Authentication
+
+Create a dedicated administrator login page.
+
+Admin login fields:
+- Email Address or Username
+- Password
+- Remember Me
+- Login Button
+- Forgot Password
+- Show/Hide Password
+
+Admin authentication requirements:
+- Verify administrator credentials on the backend.
+- Verify account activation status.
+- Verify assigned role and permissions.
+- Reject suspended, blocked, or deactivated accounts.
+- Implement login attempt restrictions.
+- Implement rate limiting.
+- Record successful and unsuccessful login attempts.
+- Support optional Multi-Factor Authentication (MFA).
+- Redirect authorized administrators to the admin dashboard.
+- Reject unauthorized users attempting to access admin routes.
+
+### Important Admin Registration Rule
+
+Never provide a public administrator registration page.
+
+Create the first Super Administrator using a secure one-time installation or provisioning command.
+
+The initial Super Administrator must:
+- Have a verified account.
+- Have the highest administrative privileges.
+- Be required to configure a strong password.
+- Be encouraged or required to activate MFA.
+- Be protected against unauthorized privilege modification.
+
+New administrator accounts must be created or invited by an already authorized administrator.
+
+Never hardcode default administrator credentials in production source code.
+
+## 4. User Roles Management
+
+Implement a flexible role-based access control system.
+
+Create the following default roles:
+
+### 4.1 Super Administrator
+Highest-level system authority.
+
+Permissions:
+- Full system access
+- Create administrators
+- Update administrator information
+- Create and manage staff accounts
+- Create and manage roles
+- Create and assign permissions
+- Activate and deactivate accounts
+- Suspend and unlock accounts
+- Reset user passwords through secure workflows
+- Manage MFA policies
+- View login history
+- View security events
+- View audit logs
+- Manage user sessions
+- Configure authentication policies
+- Revoke active sessions
+
+Protect critical Super Administrator operations with additional authorization and audit logging.
+
+Prevent accidental removal of the final active Super Administrator.
+
+### 4.2 Administrator
+
+Permissions:
+- View user accounts
+- Create authorized staff accounts
+- Update permitted user information
+- Assign authorized roles
+- Activate and deactivate permitted accounts
+- Manage eligible staff accounts
+- View user activity
+- View login history
+- Initiate password reset workflows
+- Manage permitted user sessions
+
+Administrators must not automatically have permission to change Super Administrator privileges or security-critical configurations.
+
+### 4.3 Manager
+
+Permissions:
+- View assigned user accounts
+- View permitted staff information
+- Manage permitted accounts
+- Activate or deactivate permitted users
+- View authorized activity records
+
+Cannot create Super Administrators or change critical security settings.
+
+### 4.4 Staff
+
+Permissions:
+- Access authorized account features
+- View and update permitted profile information
+- Change own password
+- Manage permitted personal session settings
+
+No access to user administration unless explicitly granted.
+
+### 4.5 Customer
+
+Permissions:
+- Customer registration
+- Customer login and logout
+- View and update own profile
+- Change own password
+- Request password reset
+- Manage own sessions
+- View own account activity where provided
+
+Customers must never access administrative accounts, roles, permissions, or other customers' private information.
+
+### 4.6 Guest
+
+- No authenticated account privileges.
+- No access to protected administrative APIs.
+- No access to private user information.
+
+## 5. Advanced Role-Based Access Control (RBAC)
+
+Build a dynamic role and permission management module.
+
+Do not use only hardcoded role names or frontend conditions.
+
+Implement permission-based authorization.
+
+### Permission Categories
+
+**User Management**
+- users.view
+- users.create
+- users.update
+- users.deactivate
+- users.activate
+- users.delete
+- users.suspend
+- users.unlock
+
+**Role Management**
+- roles.view
+- roles.create
+- roles.update
+- roles.delete
+- roles.assign
+
+**Permission Management**
+- permissions.view
+- permissions.create
+- permissions.update
+- permissions.assign
+
+**Authentication Management**
+- auth.login
+- auth.logout
+- auth.password_reset
+- auth.sessions.manage
+- auth.mfa.manage
+
+**Security Management**
+- security.view
+- security.settings.manage
+- security.login_history.view
+- security.audit_logs.view
+- security.sessions.revoke
+
+**Profile Management**
+- profile.view
+- profile.update
+- profile.password.change
+
+### Permission Features
+
+- Create custom roles.
+- Edit existing roles.
+- Assign multiple permissions to roles.
+- Remove permissions from roles.
+- Assign roles to users.
+- Support multiple roles per user where appropriate.
+- Prevent unauthorized privilege escalation.
+- Restrict access to critical permissions.
+- Support permission changes without rebuilding the application.
+- Maintain a complete history of role and permission changes.
+
+Every permission must be verified by backend middleware.
+
+Hiding menu items or buttons in React is not sufficient security.
+
+## 6. User Management Dashboard
+
+Develop a professional administrative user management dashboard.
+
+### Dashboard Statistics
+
+Display:
+- Total Users
+- Total Administrators
+- Total Staff
+- Total Customers
+- Active Users
+- Inactive Users
+- Suspended Users
+- Locked Accounts
+- Newly Registered Users
+- Recent Login Activities
+
+### User List
+
+Create a professional data table with:
+
+- User ID
+- Full Name
+- Username
+- Email
+- Mobile Number
+- User Role
+- Account Status
+- Email Verification Status
+- MFA Status
+- Registration Date
+- Last Login
+- Actions
+
+### User Management Actions
+
+Provide:
+- Add User
+- Edit User
+- View User Details
+- Assign Role
+- Manage Permissions
+- Activate User
+- Deactivate User
+- Suspend User
+- Unlock User
+- Initiate Password Reset
+- Revoke Sessions
+- View Login History
+
+Add:
+- Search
+- Pagination
+- Sorting
+- Role filtering
+- Status filtering
+- Date-range filtering
+- Export authorized user reports
+
+Use confirmation dialogs for sensitive operations.
+
+## 7. User Registration Management
+
+Develop secure customer registration and administrator-controlled staff registration.
+
+### Customer Registration
+
+Fields:
+- Full Name
+- Username
+- Email Address
+- Mobile Number
+- Password
+- Confirm Password
+- Terms and Conditions
+
+Requirements:
+- Validate email format.
+- Verify mobile numbers where supported.
+- Enforce unique usernames and email addresses.
+- Enforce password policy.
+- Verify email or phone using a secure OTP or verification link.
+- Prevent automated registration abuse.
+- Assign the customer role automatically.
+- Never allow public registration to specify an administrator role.
+
+### Admin and Staff Registration
+
+Only authorized administrators can create or invite staff and administrators.
+
+Fields:
+- Full Name
+- Username
+- Email
+- Mobile Number
+- Designation
+- Assigned Role
+- Account Status
+
+Requirements:
+- Send an account invitation.
+- Generate a time-limited, single-use invitation token.
+- Require the invited user to establish a password.
+- Record the user who created the account.
+- Record role assignment history.
+- Require additional authorization for privileged roles.
+
+## 8. Password Security Management
+
+Implement comprehensive password management.
+
+### Password Policy
+
+- Minimum 12 characters for administrator accounts.
+- Encourage long passphrases.
+- Check passwords against known compromised-password lists where practical.
+- Reject commonly used passwords.
+- Do not impose unnecessary complexity rules that undermine usability.
+- Prevent password reuse for a configurable password history.
+- Never store plain-text passwords.
+- Hash passwords using Argon2id with securely configured parameters.
+- Support secure password changes.
+
+### Password Features
+
+- Change Password
+- Forgot Password
+- Reset Password
+- Password Expiry Policy, if required
+- Password History
+- Password Strength Indicator
+- Password Reset Notifications
+
+### Forgot Password
+
+1. User submits registered email or mobile number.
+2. Backend generates a cryptographically secure reset token or OTP.
+3. Store only a secure hash of the reset token where applicable.
+4. Send the reset instructions through a verified channel.
+5. Apply expiration time and single-use validation.
+6. Reject expired or previously used tokens.
+7. Revoke existing sessions after a successful security-sensitive password reset.
+8. Notify the account owner.
+
+Use generic responses where needed to prevent account enumeration.
+
+## 9. Multi-Factor Authentication (MFA)
+
+Support MFA for privileged accounts.
+
+Implement:
+- Authenticator application using TOTP.
+- Recovery codes.
+- MFA enrollment.
+- MFA verification.
+- MFA reset workflow.
+- MFA disable workflow with reauthentication.
+- Backup code regeneration.
+
+Recommended policy:
+- Require MFA for Super Administrators.
+- Require MFA for Administrators.
+- Allow configurable MFA enforcement for other staff.
+- Encourage MFA for customers.
+
+Store MFA secrets encrypted at rest.
+
+Recovery codes must be generated securely, displayed only when created, and stored as secure hashes.
+
+## 10. Session and Device Management
+
+Implement a secure session management module.
+
+Features:
+- View active sessions.
+- View logged-in devices.
+- Device and browser information.
+- IP address information where appropriate.
+- Session creation time.
+- Last activity time.
+- Current session identification.
+- Terminate individual sessions.
+- Revoke all other sessions.
+- Automatic session expiration.
+- Idle timeout.
+- Absolute session lifetime.
+- Refresh-token rotation.
+- Refresh-token reuse detection.
+
+Use secure, HttpOnly, SameSite cookies for browser authentication.
+
+Use appropriate Secure cookie settings in production.
+
+Do not store sensitive authentication tokens in localStorage.
+
+Provide logout functionality that invalidates the server-side session or refresh token.
+
+## 11. Account Protection
+
+Implement account protection mechanisms.
+
+### Login Attempt Protection
+- Rate limit authentication endpoints.
+- Apply progressive delays after repeated failed attempts.
+- Support temporary account lockout.
+- Provide secure account recovery.
+- Notify users about suspicious login activity.
+
+### Suspicious Login Detection
+Detect unusual patterns, such as:
+- Repeated failed login attempts.
+- Login from unusual locations.
+- Unusual device activity.
+- Multiple concurrent suspicious sessions.
+- Abnormal account recovery attempts.
+
+Provide administrator alerts for high-risk events.
+
+Avoid relying solely on IP addresses for identity or access decisions.
+
+### Account Status
+
+Create these account statuses:
+- Active
+- Pending Verification
+- Inactive
+- Suspended
+- Locked
+- Deactivated
+
+Apply status restrictions on the backend before granting access.
+
+## 12. Security Settings Dashboard
+
+Create a dedicated security settings section.
+
+Configurable settings:
+- Minimum password length
+- Password history limit
+- Login attempt limit
+- Lockout duration
+- Access token lifetime
+- Refresh token lifetime
+- Idle session timeout
+- Maximum session lifetime
+- MFA enforcement
+- Email verification requirement
+- Mobile verification requirement
+- Password reset token expiration
+- Administrator invitation expiration
+
+Only authorized Super Administrators can change critical security configurations.
+
+Validate configuration changes on the backend.
+
+Record previous and new values in audit logs.
+
+## 13. Audit Logs and Activity Monitoring
+
+Implement a comprehensive security audit system.
+
+### Audit Log Fields
+
+- Audit ID
+- User ID
+- Username
+- Role
+- Action
+- Module
+- Target Record ID
+- Previous Value
+- New Value
+- IP Address
+- User Agent
+- Timestamp
+- Result
+- Additional Context
+
+### Record Events
+
+- Successful login
+- Failed login
+- Logout
+- Password change
+- Password reset
+- MFA activation
+- MFA deactivation
+- Account creation
+- Account activation
+- Account suspension
+- Account deactivation
+- Role changes
+- Permission changes
+- Session revocation
+- Security settings changes
+- Administrator account modifications
+- Invitation creation and acceptance
+
+Audit logs should be append-only from the application's normal operating interfaces.
+
+Restrict access to authorized security administrators.
+
+Never log passwords, raw authentication tokens, OTP values, MFA secrets, or other sensitive credentials.
+
+Include audit log search, filtering, pagination, and authorized export.
+
+## 14. Frontend Protected Routes
+
+Implement protected routing using React Router.
+
+Create these route groups:
+
+### Public Routes
+- /login
+- /register
+- /forgot-password
+- /reset-password
+- /verify-account
+
+### Admin Routes
+- /admin/login
+- /admin/forgot-password
+- /admin/verify-mfa
+
+### Protected Admin Routes
+- /admin/dashboard
+- /admin/users
+- /admin/users/create
+- /admin/users/:id
+- /admin/roles
+- /admin/permissions
+- /admin/sessions
+- /admin/security
+- /admin/audit-logs
+- /admin/profile
+
+### Customer Account Routes
+- /account/profile
+- /account/security
+- /account/sessions
+
+Implement:
+- Authentication guard.
+- Role-based route guard.
+- Permission-based route guard.
+- Session validation.
+- Automatic redirect for unauthenticated users.
+- Proper unauthorized and forbidden pages.
+- Secure logout and session invalidation.
+
+Do not assume a React route guard is a security boundary. The backend must enforce the same restrictions.
+
+## 15. Backend Authorization Middleware
+
+Create reusable Express.js middleware.
+
+Example architecture:
+
+- authenticateUser()
+- authenticateAdmin()
+- requirePermission(permission)
+- requireRole(role)
+- requireMfa()
+- validateSession()
+- requireActiveAccount()
+- rateLimitLogin()
+- validateCsrfToken()
+
+Every protected API endpoint must use appropriate middleware.
+
+Never trust:
+- User role sent by the browser.
+- User ID sent by the browser.
+- Permission claims that have not been validated.
+- Client-supplied account status.
+- Client-supplied administrative privileges.
+
+Identify users from the validated server-side authentication context.
+
+Use server-side database checks or securely managed authorization data to prevent stale privileges from remaining effective after account or permission changes.
+
+## 16. Database Schema
+
+Create a normalized relational database.
+
+Required tables:
+
+1. Users
+2. Roles
+3. Permissions
+4. UserRoles
+5. RolePermissions
+6. UserPermissionOverrides
+7. UserSessions
+8. RefreshTokens
+9. LoginAttempts
+10. LoginHistory
+11. PasswordResetTokens
+12. PasswordHistory
+13. EmailVerificationTokens
+14. PhoneVerificationTokens
+15. AdminInvitations
+16. UserMfa
+17. MfaRecoveryCodes
+18. SecuritySettings
+19. AuditLogs
+20. SecurityEvents
+21. UserNotifications
+
+### Important Database Rules
+
+- Use UUID or secure unique identifiers.
+- Add appropriate unique constraints.
+- Use foreign keys.
+- Add indexes for frequently queried fields.
+- Store password hashes, not passwords.
+- Store token hashes, not raw tokens.
+- Encrypt sensitive MFA information.
+- Maintain created_at and updated_at timestamps.
+- Track account activation and deactivation.
+- Preserve important security and audit history.
+- Use database transactions for sensitive account operations.
+
+Create an ER diagram and Prisma schema before implementing the APIs.
+
+## 17. API Endpoints
+
+Design REST APIs with validation, authentication, authorization, pagination, and error handling.
+
+### Authentication
+- POST /api/auth/login
+- POST /api/auth/logout
+- POST /api/auth/refresh
+- POST /api/auth/register
+- GET /api/auth/me
+- POST /api/auth/forgot-password
+- POST /api/auth/reset-password
+- POST /api/auth/verify-email
+- POST /api/auth/change-password
+
+### Admin Authentication
+- POST /api/admin/auth/login
+- POST /api/admin/auth/logout
+- POST /api/admin/auth/verify-mfa
+- POST /api/admin/auth/refresh
+- GET /api/admin/auth/me
+
+### User Management
+- GET /api/admin/users
+- GET /api/admin/users/:id
+- POST /api/admin/users
+- PUT /api/admin/users/:id
+- PATCH /api/admin/users/:id/status
+- POST /api/admin/users/:id/assign-role
+- POST /api/admin/users/:id/reset-password
+- POST /api/admin/users/:id/revoke-sessions
+
+### Role and Permission Management
+- GET /api/admin/roles
+- POST /api/admin/roles
+- PUT /api/admin/roles/:id
+- DELETE /api/admin/roles/:id
+- GET /api/admin/permissions
+- POST /api/admin/roles/:id/permissions
+
+### Security Management
+- GET /api/admin/security/settings
+- PUT /api/admin/security/settings
+- GET /api/admin/security/events
+- GET /api/admin/audit-logs
+- GET /api/admin/sessions
+- DELETE /api/admin/sessions/:id
+
+Adapt the endpoint names to the final architecture and ensure that every privileged endpoint requires appropriate server-side authorization.
+
+Use Swagger/OpenAPI for API documentation.
+
+## 18. Admin Dashboard UI/UX
+
+Create a professional, responsive admin security dashboard.
+
+### Layout
+
+- Modern collapsible sidebar
+- Top navigation
+- Admin profile menu
+- Notifications
+- Breadcrumb navigation
+- Dashboard statistics
+- Professional data tables
+- Search and filtering
+- Confirmation dialogs
+- Toast notifications
+- Loading indicators
+- Error states
+
+### Sidebar Menu
+
+1. Dashboard
+2. User Management
+3. Administrator Management
+4. Staff Management
+5. Customer Accounts
+6. Role Management
+7. Permission Management
+8. Active Sessions
+9. Login History
+10. Security Events
+11. Audit Logs
+12. Security Settings
+13. My Profile
+14. Logout
+
+Display menu items according to the authenticated administrator's permissions.
+
+Provide separate interfaces for user administration and personal account security.
+
+## 19. Security Testing
+
+Create automated security tests.
+
+### Authentication Tests
+- Valid login.
+- Invalid login.
+- Password reset.
+- Expired token.
+- Invalid refresh token.
+- Reused refresh token.
+- Deactivated account login.
+- Locked account login.
+- MFA verification.
+- Session revocation.
+
+### Authorization Tests
+- Customer cannot access admin APIs.
+- Staff cannot access unauthorized admin functions.
+- Administrator cannot modify protected Super Administrator privileges.
+- Users cannot assign themselves higher privileges.
+- Unauthorized role assignment is rejected.
+- Direct API calls cannot bypass permission checks.
+- Deactivated accounts lose access.
+- Permission changes take effect appropriately.
+
+### Security Tests
+- SQL injection protection.
+- XSS protection.
+- CSRF protection where applicable.
+- Brute-force protection.
+- Rate limiting.
+- Session fixation prevention.
+- Refresh-token reuse detection.
+- Account enumeration protection.
+- Insecure direct object reference (IDOR) prevention.
+- Privilege escalation prevention.
+- Sensitive information exposure prevention.
+
+Use unit testing, integration testing, and end-to-end testing.
+
+Perform dependency vulnerability checks and security review before release.
+
+## 20. Project Structure
+
+Create a clean modular architecture.
+
+```text
+secure-user-management/
+│
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── layouts/
+│   │   ├── pages/
+│   │   │   ├── auth/
+│   │   │   ├── admin/
+│   │   │   ├── users/
+│   │   │   ├── roles/
+│   │   │   ├── permissions/
+│   │   │   └── security/
+│   │   ├── routes/
+│   │   ├── hooks/
+│   │   ├── services/
+│   │   ├── contexts/
+│   │   ├── schemas/
+│   │   └── utils/
+│   └── package.json
+│
+├── server/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── services/
+│   │   ├── routes/
+│   │   ├── middleware/
+│   │   ├── validators/
+│   │   ├── authorization/
+│   │   ├── repositories/
+│   │   ├── security/
+│   │   ├── utils/
+│   │   └── app.ts
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   ├── migrations/
+│   │   └── seed.ts
+│   └── package.json
+│
+├── tests/
+├── docs/
+│   ├── AUTHENTICATION.md
+│   ├── AUTHORIZATION.md
+│   ├── SECURITY.md
+│   ├── DATABASE.md
+│   └── INSTALLATION.md
+│
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+└── README.md
+```
+
+## 21. Development Phases
+
+Develop the system in the following order:
+
+Phase 1: System architecture and database design.
+
+Phase 2: Database configuration and migrations.
+
+Phase 3: Initial Super Administrator provisioning.
+
+Phase 4: Administrator authentication.
+
+Phase 5: Customer and staff authentication.
+
+Phase 6: Password and account recovery.
+
+Phase 7: Role and permission management.
+
+Phase 8: User management dashboard.
+
+Phase 9: MFA and session management.
+
+Phase 10: Account protection and security settings.
+
+Phase 11: Audit logging and security monitoring.
+
+Phase 12: Automated testing and security review.
+
+Phase 13: Production configuration and deployment.
+
+Every phase must include functional implementation and testing.
+
+## 22. Mandatory Security Rules
+
+1. Never store plain-text passwords.
+2. Never store authentication tokens in localStorage.
+3. Never allow public administrator registration.
+4. Never trust frontend role or permission information.
+5. Never expose database credentials or secrets to React.
+6. Never allow unauthorized privilege escalation.
+7. Never bypass backend permission middleware.
+8. Never allow suspended or deactivated accounts to authenticate.
+9. Never log passwords, OTPs, or raw authentication tokens.
+10. Never allow unauthorized users to access another user's account.
+11. Never delete critical audit history through ordinary application interfaces.
+12. Never use fake authentication or hardcoded production credentials.
+13. Apply secure password recovery and session invalidation.
+14. Protect all privileged operations with appropriate authorization.
+15. Require MFA for privileged administrator accounts.
+16. Make security-critical changes auditable.
+
+Follow current OWASP Application Security Verification Standard (ASVS) guidance and applicable OWASP security best practices.
+
+## 23. Final Deliverables
+
+Provide:
+
+- Complete React.js TypeScript frontend.
+- Complete Node.js backend.
+- Complete authentication system.
+- Dedicated admin login.
+- Secure administrator provisioning.
+- Customer and staff authentication.
+- Role-based access control.
+- Dynamic permission management.
+- User management dashboard.
+- Password management.
+- MFA implementation.
+- Session and device management.
+- Security settings module.
+- Audit logging.
+- Security monitoring.
+- PostgreSQL/MySQL database schema.
+- Prisma migrations.
+- API documentation.
+- Automated test suite.
+- Installation guide.
+- Production deployment guide.
+
+## 24. Final Acceptance Criteria
+
+The system is complete only when:
+
+- The Super Administrator can securely log in.
+- Public users cannot register as administrators.
+- Authorized administrators can create and manage user accounts.
+- Administrators can dynamically assign roles and permissions.
+- Users cannot access unauthorized modules or API endpoints.
+- Backend authorization cannot be bypassed through browser manipulation.
+- MFA works for privileged administrator accounts.
+- Password reset and account recovery work securely.
+- Active sessions can be monitored and revoked.
+- Suspicious login activities are recorded.
+- Important security events are stored in audit logs.
+- Account suspension and deactivation immediately prevent new access.
+- Security tests pass.
+- The system is ready for production deployment.
+
+## FINAL DEVELOPMENT INSTRUCTION
+
+Start by presenting:
+
+1. Complete security architecture.
+2. Authentication workflow diagram.
+3. Admin authentication workflow.
+4. Role-permission matrix.
+5. Database ER diagram.
+6. Database schema.
+7. API architecture.
+8. Development roadmap.
+
+Then implement each phase with complete working source code, proper folder structure, database migrations, testing instructions, and installation documentation.
+
+Do not provide incomplete sample code, pseudocode, dummy authentication, or frontend-only security.
+
+The final deliverable must be a fully functional, secure, maintainable, production-ready authentication and user management system.
+
+Recommended security architecture
+Authentication and authorization flow
+React.js Frontend
+
+Admin Login · User Dashboard · Role Management
+Node.js Authentication API
+Login · MFA · Session · Token Validation
+Authorization Middleware (RBAC)
+Role Verification · Permission Verification · Account Status
+Database (PostgreSQL / MySQL)
+
+Users · Roles · Permissions · Sessions · Audit Logs
+My recommendation: Keep the Super Administrator login separate from customer login at the interface level, but use one centralized backend authentication and authorization architecture. This makes account security easier to maintain and prevents separate authentication systems from developing inconsistent security rules.

@@ -36,7 +36,15 @@ import {
   Calendar as CalendarIcon,
   User as UserIcon,
   CreditCard,
-  Kanban
+  Kanban,
+  Shield,
+  UserCheck,
+  KeyRound,
+  Monitor,
+  History,
+  ShieldAlert,
+  Settings,
+  LogOut
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useAuth } from '../../context/AuthContext';
@@ -58,6 +66,10 @@ import {
   TaskKanbanView,
   UserProfileView
 } from './TailAdminOperationsViews';
+import { UserManagementView } from './security/UserManagementView';
+import { RolePermissionView } from './security/RolePermissionView';
+import { SecurityOperationsView } from './security/SecurityOperationsView';
+import { PersonalSecurityPanel } from '../auth/PersonalSecurityPanel';
 import { Product, Order, OrderStatus } from '../../types';
 import { getPaymentChannelName } from '../../config/epsPaymentOptions';
 
@@ -77,13 +89,24 @@ export type AdminTab =
   | 'bids'
   | 'suppliers'
   | 'finance'
-  | 'audit';
+  | 'audit'
+  | 'users-all'
+  | 'users-admins'
+  | 'users-staff'
+  | 'users-customers'
+  | 'roles'
+  | 'permissions'
+  | 'sessions'
+  | 'login-history'
+  | 'security-events'
+  | 'security-settings';
 
 interface AdminDashboardProps {
   isOpen: boolean;
   onClose: () => void;
   onPrintInvoice: (order: Order) => void;
   initialTab?: AdminTab;
+  onTabChange?: (tab: AdminTab) => void;
   editingProduct?: Product | null;
   onClearEditingProduct?: () => void;
 }
@@ -93,6 +116,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onClose,
   onPrintInvoice,
   initialTab,
+  onTabChange,
   editingProduct,
   onClearEditingProduct
 }) => {
@@ -128,7 +152,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     lastBackupDate
   } = useStore();
 
-  const { currentUser, isSeller } = useAuth();
+  const { currentUser, isSeller, isManager, hasPermission, hasAnyPermission, signOut } = useAuth();
   const { addToast, notifications, unreadCount, markAllAsRead, markAsRead } = useNotification();
 
   // Shell & TailAdmin Navigation State
@@ -136,7 +160,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isDark, setIsDark] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
-  const [openMenuGroup, setOpenMenuGroup] = useState<'dashboard' | 'ecommerce' | 'tasks' | 'operations'>('dashboard');
+  const [openMenuGroup, setOpenMenuGroup] = useState<'dashboard' | 'ecommerce' | 'tasks' | 'security'>('dashboard');
   const [globalSearch, setGlobalSearch] = useState<string>('');
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState<boolean>(false);
   const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState<boolean>(false);
@@ -231,7 +255,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isManager) return null;
 
   // CSV Download helper
   const downloadCsvFile = (csv: string, filename: string) => {
@@ -246,6 +270,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Handlers for Product CRUD (inline workspace, never popup)
   const handleOpenCreateProduct = () => {
+    if (!isManager) return;
     setProductEditorState({
       mode: 'create',
       product: null
@@ -256,6 +281,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleOpenEditProduct = (prod: Product) => {
+    if (!isManager) return;
     setProductEditorState({
       mode: 'edit',
       product: prod
@@ -266,6 +292,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDuplicateProduct = async (prod: Product) => {
+    if (!isManager) return;
     const cloneSku = `${prod.sku}-COPY-${Math.floor(100 + Math.random() * 900)}`;
     const cloneName = `${prod.name} (Copy)`;
     const cloneVariants = prod.variants.map((v) => ({
@@ -287,6 +314,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleProductFormSubmit = async (data: any) => {
+    if (!isManager) return;
     if (productEditorState.mode === 'create') {
       await addProduct(data);
     } else if (productEditorState.mode === 'edit' && productEditorState.product) {
@@ -295,11 +323,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleArchiveProduct = async (productId: string) => {
+    if (!isManager) return;
     await updateProduct(productId, { status: 'archived' });
     addToast('Product Archived', 'Product status set to Archived (hidden from storefront).', 'info');
   };
 
   const handlePermanentDelete = async (productId: string) => {
+    if (!isManager) return;
     await deleteProduct(productId);
   };
 
@@ -353,6 +383,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const selectTab = (tab: AdminTab) => {
     setActiveTab(tab);
     setIsMobileSidebarOpen(false);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
   };
 
   // Filtered Orders & Products
@@ -416,13 +449,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     billing: 'Billing & EPS Gateway',
     customers: 'Customers Directory',
     calendar: 'Campaign & Restock Calendar',
-    profile: 'User Profile & Store Settings',
+    profile: 'My Profile & Personal Security',
     tasks: 'Operations Task Board',
     inventory: 'Inventory & Stock Ledger',
     bids: 'Customer Bids & Vouchers',
     finance: 'Finance & P&L Statement',
     suppliers: 'Suppliers & Purchase Orders',
-    audit: 'Audit Logs & SOC2 Compliance'
+    audit: 'Audit Logs & SOC2 Compliance',
+    'users-all': 'User Management Directory',
+    'users-admins': 'Administrator Management',
+    'users-staff': 'Staff Management',
+    'users-customers': 'Customer Accounts',
+    roles: 'Role Management & Hierarchy',
+    permissions: 'Dynamic Permission Matrix',
+    sessions: 'Active Sessions & Devices',
+    'login-history': 'Login History & Risk Monitor',
+    'security-events': 'Security Events & Alerts',
+    'security-settings': 'Security Settings & Policies'
   };
 
   // Sidebar Content shared between Desktop Rail & Mobile Drawer
@@ -779,6 +822,203 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
+            {/* Group: Security & Identity (RBAC Permission Gated) */}
+            {hasAnyPermission([
+              'users.view',
+              'roles.view',
+              'permissions.view',
+              'security.view',
+              'security.login_history.view',
+              'security.audit_logs.view',
+              'security.settings.manage'
+            ]) && (
+              <div>
+                {!compact && (
+                  <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                    Identity &amp; Security
+                  </p>
+                )}
+
+                <div className="space-y-1">
+                  {hasPermission('users.view') && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => selectTab('users-all')}
+                        className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === 'users-all'
+                            ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                        }`}
+                        title="User Management"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <Users className="w-4 h-4 shrink-0" />
+                          {!compact && <span className="truncate">User Management</span>}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => selectTab('users-admins')}
+                        className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === 'users-admins'
+                            ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                        }`}
+                        title="Administrator Management"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <Shield className="w-4 h-4 shrink-0" />
+                          {!compact && <span className="truncate">Administrators</span>}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => selectTab('users-staff')}
+                        className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === 'users-staff'
+                            ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                        }`}
+                        title="Staff Management"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <UserCheck className="w-4 h-4 shrink-0" />
+                          {!compact && <span className="truncate">Staff Accounts</span>}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => selectTab('users-customers')}
+                        className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === 'users-customers'
+                            ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                        }`}
+                        title="Customer Accounts"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <UserIcon className="w-4 h-4 shrink-0" />
+                          {!compact && <span className="truncate">Customer Accounts</span>}
+                        </span>
+                      </button>
+                    </>
+                  )}
+
+                  {hasPermission('roles.view') && (
+                    <button
+                      type="button"
+                      onClick={() => selectTab('roles')}
+                      className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'roles'
+                          ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                      }`}
+                      title="Role Management"
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <KeyRound className="w-4 h-4 shrink-0" />
+                        {!compact && <span className="truncate">Role Management</span>}
+                      </span>
+                    </button>
+                  )}
+
+                  {hasPermission('permissions.view') && (
+                    <button
+                      type="button"
+                      onClick={() => selectTab('permissions')}
+                      className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'permissions'
+                          ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                      }`}
+                      title="Permission Management"
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <ShieldCheck className="w-4 h-4 shrink-0" />
+                        {!compact && <span className="truncate">Permissions Matrix</span>}
+                      </span>
+                    </button>
+                  )}
+
+                  {hasPermission('security.view') && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => selectTab('sessions')}
+                        className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === 'sessions'
+                            ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                        }`}
+                        title="Active Sessions"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <Monitor className="w-4 h-4 shrink-0" />
+                          {!compact && <span className="truncate">Active Sessions</span>}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => selectTab('security-events')}
+                        className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === 'security-events'
+                            ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                        }`}
+                        title="Security Events"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <ShieldAlert className="w-4 h-4 shrink-0" />
+                          {!compact && <span className="truncate">Security Events</span>}
+                        </span>
+                      </button>
+                    </>
+                  )}
+
+                  {hasPermission('security.login_history.view') && (
+                    <button
+                      type="button"
+                      onClick={() => selectTab('login-history')}
+                      className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'login-history'
+                          ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                      }`}
+                      title="Login History"
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <History className="w-4 h-4 shrink-0" />
+                        {!compact && <span className="truncate">Login History</span>}
+                      </span>
+                    </button>
+                  )}
+
+                  {(hasPermission('security.settings.manage') || hasPermission('security.view')) && (
+                    <button
+                      type="button"
+                      onClick={() => selectTab('security-settings')}
+                      className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'security-settings'
+                          ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                      }`}
+                      title="Security Settings"
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <Settings className="w-4 h-4 shrink-0" />
+                        {!compact && <span className="truncate">Security Settings</span>}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Group: Governance */}
             <div>
               {!compact && (
@@ -788,21 +1028,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
 
               <div className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => selectTab('audit')}
-                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    activeTab === 'audit'
-                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
-                  }`}
-                  title="Audit & SOC2"
-                >
-                  <span className="flex items-center gap-3 min-w-0">
-                    <ShieldCheck className="w-4 h-4 shrink-0" />
-                    {!compact && <span className="truncate">Audit &amp; SOC2</span>}
-                  </span>
-                </button>
+                {hasAnyPermission(['security.audit_logs.view', 'security.view']) && (
+                  <button
+                    type="button"
+                    onClick={() => selectTab('audit')}
+                    className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      activeTab === 'audit'
+                        ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                    }`}
+                    title="Audit Logs"
+                  >
+                    <span className="flex items-center gap-3 min-w-0">
+                      <ShieldCheck className="w-4 h-4 shrink-0" />
+                      {!compact && <span className="truncate">Audit Logs</span>}
+                    </span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -813,6 +1055,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span className="flex items-center gap-3 min-w-0">
                     <Store className="w-4 h-4 shrink-0" />
                     {!compact && <span className="truncate">Back to Storefront</span>}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signOut();
+                    addToast('Signed Out', 'Your administrator session has been revoked.', 'info');
+                    onClose();
+                  }}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 transition-colors cursor-pointer`}
+                  title="Logout"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <LogOut className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Logout</span>}
                   </span>
                 </button>
               </div>
@@ -1137,9 +1395,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           setIsUserDropdownOpen(false);
                           onClose();
                         }}
-                        className="w-full text-left px-3 py-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 font-medium cursor-pointer"
+                        className="w-full text-left px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
                       >
                         Exit to Storefront
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsUserDropdownOpen(false);
+                          await signOut();
+                          onClose();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 font-medium cursor-pointer"
+                      >
+                        Sign Out Session
                       </button>
                     </div>
                   </div>
@@ -1289,10 +1558,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 />
               )}
 
-              {/* VIEW 1H: USER PROFILE & ACCOUNT SETTINGS */}
+              {/* VIEW 1H: USER PROFILE & PERSONAL SECURITY (SEPARATE FROM USER ADMIN) */}
               {activeTab === 'profile' && (
-                <UserProfileView currentUser={currentUser} />
+                <div className="space-y-6">
+                  <UserProfileView currentUser={currentUser} />
+                  <PersonalSecurityPanel initialSection="mfa" />
+                </div>
               )}
+
+              {/* SECURITY MODULE VIEWS */}
+              {activeTab === 'users-all' && <UserManagementView presetFilter="all" />}
+              {activeTab === 'users-admins' && <UserManagementView presetFilter="admins" />}
+              {activeTab === 'users-staff' && <UserManagementView presetFilter="staff" />}
+              {activeTab === 'users-customers' && <UserManagementView presetFilter="customers" />}
+              {activeTab === 'roles' && <RolePermissionView mode="roles" />}
+              {activeTab === 'permissions' && <RolePermissionView mode="permissions" />}
+              {activeTab === 'sessions' && <SecurityOperationsView section="sessions" />}
+              {activeTab === 'login-history' && <SecurityOperationsView section="login-history" />}
+              {activeTab === 'security-events' && <SecurityOperationsView section="security-events" />}
+              {activeTab === 'security-settings' && <SecurityOperationsView section="security-settings" />}
 
               {/* VIEW 1: TAILADMIN ECOMMERCE OVERVIEW */}
               {activeTab === 'analytics' && (
@@ -2476,21 +2760,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* VIEW 8: AUDIT LOGS & SOC2 */}
               {activeTab === 'audit' && (
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03] space-y-4">
-                  <div className="flex flex-wrap justify-between items-center gap-3">
-                    <div>
-                      <h3 className="font-semibold text-base text-gray-900 dark:text-white">
-                        SOC2 &amp; GDPR Compliance Audit Trail
-                      </h3>
-                      <p className="text-gray-500 dark:text-gray-400 text-xs">
-                        Immutable record of administrative, financial, and inventory actions
-                      </p>
+                <div className="space-y-6">
+                  {hasAnyPermission(['security.audit_logs.view', 'security.view']) && (
+                    <SecurityOperationsView section="security-audit" />
+                  )}
+                  <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03] space-y-4">
+                    <div className="flex flex-wrap justify-between items-center gap-3">
+                      <div>
+                        <h3 className="font-semibold text-base text-gray-900 dark:text-white">
+                          Store Commerce &amp; Inventory Ledger Trail
+                        </h3>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs">
+                          Immutable record of inventory and order fulfillment operations
+                        </p>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 rounded-full font-semibold text-xs">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Audit Active</span>
+                      </span>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 rounded-full font-semibold text-xs">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Audit Active</span>
-                    </span>
-                  </div>
 
                   <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl max-h-[540px] overflow-y-auto">
                     <table className="min-w-[760px] w-full text-left text-xs">
@@ -2530,6 +2818,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         ))}
                       </tbody>
                     </table>
+                  </div>
                   </div>
                 </div>
               )}

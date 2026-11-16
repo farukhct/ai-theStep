@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -23,7 +24,24 @@ import { DevDocsModal } from './components/common/DevDocsModal';
 import { GdprModal } from './components/common/GdprModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { CustomerPortalModal } from './components/auth/CustomerPortalModal';
-import { AdminDashboard } from './components/dashboard/AdminDashboard';
+import { AdminDashboard, AdminTab } from './components/dashboard/AdminDashboard';
+import {
+  RequireAuth,
+  RequireAdmin,
+  UnauthorizedPage,
+  ForbiddenPage
+} from './routes/ProtectedRoute';
+import {
+  CustomerLoginPage,
+  CustomerRegisterPage,
+  ForgotPasswordPage,
+  ResetPasswordPage,
+  VerifyAccountPage,
+  AcceptInvitationPage,
+  AdminLoginPage,
+  AdminMfaPage,
+  CustomerAccountPage
+} from './pages/auth/AuthPages';
 import { Product, ProductVariant, Order } from './types';
 import { GARMENT_CATEGORIES } from './config/constants';
 import {
@@ -71,26 +89,10 @@ function StorefrontApp() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'register'>('signin');
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [dashboardTab, setDashboardTab] = useState<
-    | 'analytics'
-    | 'traffic-analytics'
-    | 'products'
-    | 'add-product'
-    | 'inventory'
-    | 'orders'
-    | 'invoices'
-    | 'billing'
-    | 'customers'
-    | 'calendar'
-    | 'profile'
-    | 'tasks'
-    | 'bids'
-    | 'suppliers'
-    | 'finance'
-    | 'audit'
-  >('analytics');
+  const [dashboardTab, setDashboardTab] = useState<AdminTab>('analytics');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isDevDocsOpen, setIsDevDocsOpen] = useState(false);
@@ -137,6 +139,23 @@ function StorefrontApp() {
       });
   }, [products, selectedCategory, searchQuery, filterInStockOnly, sortBy]);
 
+  useEffect(() => {
+    if (!isManager && isDashboardOpen) {
+      setIsDashboardOpen(false);
+      setEditingProduct(null);
+    }
+  }, [isManager, isDashboardOpen]);
+
+  const handleOpenAuth = (mode: 'signin' | 'register' = 'signin') => {
+    setAuthModalMode(mode);
+    setIsAuthOpen(true);
+  };
+
+  const handleOpenDashboard = () => {
+    if (!isManager) return;
+    setIsDashboardOpen(true);
+  };
+
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     setIsDetailModalOpen(true);
@@ -148,6 +167,7 @@ function StorefrontApp() {
   };
 
   const handleEditProductFromStorefront = (product: Product) => {
+    if (!isManager) return;
     setSelectedProduct(null);
     setIsDetailModalOpen(false);
     setEditingProduct(product);
@@ -163,9 +183,9 @@ function StorefrontApp() {
       <Header
         onOpenCart={() => setIsCartOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAuth={handleOpenAuth}
         onOpenPortal={() => setIsPortalOpen(true)}
-        onOpenDashboard={() => setIsDashboardOpen(true)}
+        onOpenDashboard={handleOpenDashboard}
         onOpenVoucherCenter={() => setIsVoucherCenterOpen(true)}
         onOpenTrackOrder={() => setIsTrackOrderOpen(true)}
         onOpenEpsOptions={() => setIsEpsOptionsOpen(true)}
@@ -448,7 +468,7 @@ function StorefrontApp() {
         }}
         onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
         onInstantBuy={handleInstantBuy}
-        onEditProduct={handleEditProductFromStorefront}
+        onEditProduct={isManager ? handleEditProductFromStorefront : undefined}
         onOpenBid={(p) => setBidProduct(p)}
       />
 
@@ -516,8 +536,9 @@ function StorefrontApp() {
 
       <AuthModal
         isOpen={isAuthOpen}
+        initialMode={authModalMode}
         onClose={() => setIsAuthOpen(false)}
-        onOpenDashboard={() => setIsDashboardOpen(true)}
+        onOpenDashboard={handleOpenDashboard}
       />
 
       <CustomerPortalModal
@@ -525,13 +546,13 @@ function StorefrontApp() {
         onClose={() => setIsPortalOpen(false)}
         onPrintInvoice={(order) => setOrderForInvoice(order)}
         onSelectProduct={handleSelectProduct}
-        onOpenDashboard={() => setIsDashboardOpen(true)}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenDashboard={handleOpenDashboard}
+        onOpenAuth={() => handleOpenAuth('signin')}
         onOpenCheckout={() => setIsCheckoutOpen(true)}
       />
 
       <AdminDashboard
-        isOpen={isDashboardOpen}
+        isOpen={isDashboardOpen && isManager}
         onClose={() => setIsDashboardOpen(false)}
         onPrintInvoice={(order) => setOrderForInvoice(order)}
         initialTab={dashboardTab}
@@ -547,6 +568,49 @@ function StorefrontApp() {
   );
 }
 
+const TAB_TO_ROUTE: Partial<Record<AdminTab, string>> = {
+  analytics: '/admin/dashboard',
+  'users-all': '/admin/users',
+  'users-admins': '/admin/users',
+  'users-staff': '/admin/users',
+  'users-customers': '/admin/users',
+  roles: '/admin/roles',
+  permissions: '/admin/permissions',
+  sessions: '/admin/sessions',
+  'login-history': '/admin/security',
+  'security-events': '/admin/security',
+  'security-settings': '/admin/security',
+  audit: '/admin/audit-logs',
+  profile: '/admin/profile'
+};
+
+const AdminDashboardRoute: React.FC<{ initialTab: AdminTab }> = ({ initialTab }) => {
+  const navigate = useNavigate();
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
+
+  return (
+    <>
+      <AdminDashboard
+        isOpen={true}
+        initialTab={initialTab}
+        onTabChange={(tab) => {
+          const mapped = TAB_TO_ROUTE[tab];
+          if (mapped) {
+            navigate(mapped);
+          }
+        }}
+        onClose={() => navigate('/')}
+        onPrintInvoice={(ord) => setInvoiceOrder(ord)}
+      />
+      <InvoiceModal
+        order={invoiceOrder}
+        isOpen={invoiceOrder !== null}
+        onClose={() => setInvoiceOrder(null)}
+      />
+    </>
+  );
+};
+
 export default function App() {
   return (
     <LanguageProvider>
@@ -554,7 +618,136 @@ export default function App() {
         <AuthProvider>
           <CartProvider>
             <StoreProvider>
-              <StorefrontApp />
+              <Routes>
+                {/* Public Storefront */}
+                <Route path="/" element={<StorefrontApp />} />
+
+                {/* Public Customer & Shared Authentication Routes */}
+                <Route path="/login" element={<CustomerLoginPage />} />
+                <Route path="/register" element={<CustomerRegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/verify-account" element={<VerifyAccountPage />} />
+                <Route path="/invite/accept" element={<AcceptInvitationPage />} />
+                <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                <Route path="/forbidden" element={<ForbiddenPage />} />
+
+                {/* Dedicated Administrator Authentication Routes */}
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+                <Route path="/admin/forgot-password" element={<ForgotPasswordPage isAdminPortal={true} />} />
+                <Route path="/admin/verify-mfa" element={<AdminMfaPage />} />
+
+                {/* Protected Admin Routes (RBAC + Backend Verified) */}
+                <Route
+                  path="/admin/dashboard"
+                  element={
+                    <RequireAdmin>
+                      <AdminDashboardRoute initialTab="analytics" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/users"
+                  element={
+                    <RequireAdmin requiredPermission="users.view">
+                      <AdminDashboardRoute initialTab="users-all" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/users/create"
+                  element={
+                    <RequireAdmin requiredPermission="users.create">
+                      <AdminDashboardRoute initialTab="users-all" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/users/:id"
+                  element={
+                    <RequireAdmin requiredPermission="users.view">
+                      <AdminDashboardRoute initialTab="users-all" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/roles"
+                  element={
+                    <RequireAdmin requiredPermission="roles.view">
+                      <AdminDashboardRoute initialTab="roles" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/permissions"
+                  element={
+                    <RequireAdmin requiredPermission="permissions.view">
+                      <AdminDashboardRoute initialTab="permissions" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/sessions"
+                  element={
+                    <RequireAdmin requiredPermission="security.view">
+                      <AdminDashboardRoute initialTab="sessions" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/security"
+                  element={
+                    <RequireAdmin requiredPermission="security.view">
+                      <AdminDashboardRoute initialTab="security-settings" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/audit-logs"
+                  element={
+                    <RequireAdmin requiredPermission="security.audit_logs.view">
+                      <AdminDashboardRoute initialTab="audit" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/profile"
+                  element={
+                    <RequireAdmin>
+                      <AdminDashboardRoute initialTab="profile" />
+                    </RequireAdmin>
+                  }
+                />
+
+                {/* Protected Customer Account Routes */}
+                <Route
+                  path="/account/profile"
+                  element={
+                    <RequireAuth>
+                      <CustomerAccountPage initialSection="profile" />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/account/security"
+                  element={
+                    <RequireAuth>
+                      <CustomerAccountPage initialSection="security" />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/account/sessions"
+                  element={
+                    <RequireAuth>
+                      <CustomerAccountPage initialSection="sessions" />
+                    </RequireAuth>
+                  }
+                />
+
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
             </StoreProvider>
           </CartProvider>
         </AuthProvider>

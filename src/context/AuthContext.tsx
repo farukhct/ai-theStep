@@ -1,370 +1,346 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut as fbSignOut, User as FbUser } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, googleAuthProvider, db } from '../config/firebase';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { signInWithPopup, signOut as fbSignOut } from 'firebase/auth';
+import { auth, googleAuthProvider } from '../config/firebase';
 import { UserProfile, UserRole, BangladeshAddress } from '../types';
+import {
+  apiRequest,
+  clearInMemorySessionTokens,
+  ensureCsrfToken,
+  getInMemoryMfaPendingToken,
+  setInMemorySessionTokens
+} from '../services/apiClient';
+
+interface LoginResult {
+  authenticated: boolean;
+  mfaRequired?: boolean;
+  mfaPendingToken?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  requiresVerification?: boolean;
+  verificationOtpPreview?: string;
+  mfaEnrollmentRecommended?: boolean;
+  user?: UserProfile;
+}
 
 interface AuthContextType {
   currentUser: UserProfile | null;
-  fbUser: FbUser | null;
   isLoading: boolean;
   isAdmin: boolean;
   isSeller: boolean;
   isManager: boolean;
+  isAdminSession: boolean;
+  mfaVerified: boolean;
   hasRole: (roles: UserRole[]) => boolean;
-  signInWithGoogle: () => Promise<void>;
-  signInWithMobilePin: (phone: string, pin: string, fullName?: string) => Promise<void>;
-  switchDemoRole: (role: UserRole) => void;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
+  refreshSessionUser: () => Promise<UserProfile | null>;
+  signInWithGoogle: (portal?: 'storefront' | 'admin') => Promise<LoginResult>;
+  registerWithAccount: (data: {
+    fullName: string;
+    username?: string;
+    email: string;
+    phoneNumber: string;
+    password: string;
+    confirmPassword?: string;
+    acceptedTerms?: boolean;
+  }) => Promise<LoginResult>;
+  signInWithCredentials: (identifier: string, password: string, rememberMe?: boolean) => Promise<LoginResult>;
+  loginAdmin: (identifier: string, password: string, rememberMe?: boolean) => Promise<LoginResult>;
+  verifyMfaChallenge: (code: string, isAdminPortal?: boolean, rememberMe?: boolean) => Promise<LoginResult>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
-  toggleMfa: (enabled: boolean, method?: 'sms' | 'email' | 'totp') => Promise<void>;
-  isMfaChallenged: boolean;
-  verifyMfaOtp: (code: string) => boolean;
-  saveAddress: (address: BangladeshAddress) => void;
-  toggleWishlist: (productId: string) => void;
-  collectVoucher: (code: string) => void;
+  saveAddress: (address: BangladeshAddress) => Promise<void>;
+  toggleWishlist: (productId: string) => Promise<void>;
+  collectVoucher: (code: string) => Promise<void>;
 }
-
-const DEFAULT_ADMIN: UserProfile = {
-  uid: 'admin-faruk-01',
-  email: 'faruk017@gmail.com',
-  displayName: 'Faruk (Platform Owner)',
-  phoneNumber: '+8801711000111',
-  shopName: 'TheSteps Official',
-  role: 'superadmin',
-  mfaEnabled: true,
-  mfaMethod: 'sms',
-  savedWishlist: ['prod-001', 'prod-003'],
-  collectedVouchers: ['SMART10'],
-  createdAt: '2026-01-01T00:00:00.000Z',
-  addresses: [
-    {
-      fullName: 'Faruk Hossain',
-      phone: '+8801711000111',
-      email: 'faruk017@gmail.com',
-      division: 'Dhaka',
-      district: 'Dhaka City',
-      upazila: 'Uttara Sector-11',
-      detailedAddress: 'Road 11, Sector-11, Uttara, Dhaka',
-      postcode: '1230'
-    }
-  ]
-};
-
-const DEMO_PROFILES: Record<UserRole, UserProfile> = {
-  superadmin: DEFAULT_ADMIN,
-  admin: {
-    uid: 'admin-02',
-    email: 'admin@thesteps.com.bd',
-    displayName: 'TheSteps Operations Admin',
-    phoneNumber: '+8801326052866',
-    shopName: 'TheSteps Official',
-    role: 'admin',
-    mfaEnabled: true,
-    mfaMethod: 'totp',
-    savedWishlist: [],
-    collectedVouchers: ['SMART10', 'DEAL250'],
-    createdAt: '2026-02-01T00:00:00.000Z'
-  },
-  seller: {
-    uid: 'seller-01',
-    email: 'merchant@gadgethub.bd',
-    displayName: 'Gadget Hub BD (Seller)',
-    phoneNumber: '+8801711998822',
-    shopName: 'Gadget Hub BD',
-    role: 'seller',
-    mfaEnabled: true,
-    mfaMethod: 'sms',
-    savedWishlist: [],
-    collectedVouchers: [],
-    createdAt: '2026-02-15T00:00:00.000Z'
-  },
-  product_manager: {
-    uid: 'mgr-prod-01',
-    email: 'catalog@thesteps.com.bd',
-    displayName: 'Catalog & Merchandising Lead',
-    phoneNumber: '+8801711334455',
-    role: 'product_manager',
-    mfaEnabled: false,
-    mfaMethod: 'none',
-    savedWishlist: [],
-    collectedVouchers: [],
-    createdAt: '2026-03-01T00:00:00.000Z'
-  },
-  inventory_manager: {
-    uid: 'mgr-inv-01',
-    email: 'warehouse@thesteps.com.bd',
-    displayName: 'Rajshahi Hub Logistics Head',
-    phoneNumber: '+8801811445566',
-    role: 'inventory_manager',
-    mfaEnabled: false,
-    mfaMethod: 'none',
-    savedWishlist: [],
-    collectedVouchers: [],
-    createdAt: '2026-03-01T00:00:00.000Z'
-  },
-  order_manager: {
-    uid: 'mgr-ord-01',
-    email: 'orders@thesteps.com.bd',
-    displayName: 'Fulfillment Supervisor',
-    phoneNumber: '+8801911556677',
-    role: 'order_manager',
-    mfaEnabled: false,
-    mfaMethod: 'none',
-    savedWishlist: [],
-    collectedVouchers: [],
-    createdAt: '2026-03-01T00:00:00.000Z'
-  },
-  accountant: {
-    uid: 'acc-01',
-    email: 'accounts@thesteps.com.bd',
-    displayName: 'Chief Financial Accountant',
-    phoneNumber: '+8801711667788',
-    role: 'accountant',
-    mfaEnabled: true,
-    mfaMethod: 'email',
-    savedWishlist: [],
-    collectedVouchers: [],
-    createdAt: '2026-03-01T00:00:00.000Z'
-  },
-  customer: {
-    uid: 'cust-demo-01',
-    email: 'arif.khan@gmail.com',
-    displayName: 'Arif Khan',
-    phoneNumber: '+8801712345678',
-    role: 'customer',
-    mfaEnabled: false,
-    mfaMethod: 'none',
-    savedWishlist: ['prod-001', 'prod-004'],
-    collectedVouchers: ['SMART10'],
-    createdAt: '2026-05-15T00:00:00.000Z',
-    addresses: [
-      {
-        fullName: 'Arif Khan',
-        phone: '+8801712345678',
-        email: 'arif.khan@gmail.com',
-        division: 'Dhaka',
-        district: 'Dhaka City',
-        upazila: 'Dhanmondi',
-        detailedAddress: 'House 28, Road 7A, Dhanmondi R/A, Dhaka',
-        postcode: '1209'
-      }
-    ]
-  }
-};
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const PRIVILEGED_ROLES = new Set<string>([
+  'superadmin',
+  'administrator',
+  'admin',
+  'manager',
+  'staff',
+  'seller',
+  'product_manager',
+  'inventory_manager',
+  'order_manager',
+  'accountant'
+]);
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('sd_auth_user') || localStorage.getItem('aura_auth_user');
-    if (saved) {
-      try { return JSON.parse(saved); } catch { /* ignore */ }
-    }
-    return DEFAULT_ADMIN;
-  });
-
-  const [fbUser, setFbUser] = useState<FbUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAdminSession, setIsAdminSession] = useState<boolean>(false);
+  const [mfaVerified, setMfaVerified] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isMfaChallenged, setIsMfaChallenged] = useState<boolean>(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFbUser(user);
-      if (user) {
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(userDocRef);
-
-          const isFaruk = user.email === 'faruk017@gmail.com' && user.emailVerified;
-          const defaultRole: UserRole = isFaruk ? 'superadmin' : 'customer';
-
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserProfile;
-            const updatedUser: UserProfile = {
-              ...data,
-              role: isFaruk ? 'superadmin' : data.role || defaultRole
-            };
-            setCurrentUser(updatedUser);
-            localStorage.setItem('sd_auth_user', JSON.stringify(updatedUser));
-          } else {
-            const newProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email || '',
-              displayName: user.displayName || user.email?.split('@')[0] || 'Customer',
-              phoneNumber: user.phoneNumber || '',
-              photoURL: user.photoURL || '',
-              role: defaultRole,
-              mfaEnabled: isFaruk,
-              mfaMethod: isFaruk ? 'sms' : 'none',
-              savedWishlist: [],
-              collectedVouchers: ['SMART10'],
-              createdAt: new Date().toISOString()
-            };
-            await setDoc(userDocRef, newProfile);
-            if (isFaruk) {
-              await setDoc(doc(db, 'admins', user.uid), {
-                uid: user.uid,
-                email: user.email,
-                role: 'superadmin',
-                addedAt: new Date().toISOString()
-              });
-            }
-            setCurrentUser(newProfile);
-            localStorage.setItem('sd_auth_user', JSON.stringify(newProfile));
-          }
-        } catch (err) {
-          console.warn('Firestore user fetch failed, using local session:', err);
-        }
+  const hydrateFromBackend = useCallback(async (): Promise<UserProfile | null> => {
+    try {
+      await ensureCsrfToken();
+      const data = await apiRequest<{
+        authenticated: boolean;
+        isAdminSession?: boolean;
+        mfaVerified?: boolean;
+        user: UserProfile | null;
+      }>('/api/auth/me', { skipRefresh: true });
+      if (data.authenticated && data.user) {
+        setCurrentUser(data.user);
+        setIsAdminSession(Boolean(data.isAdminSession));
+        setMfaVerified(Boolean(data.mfaVerified));
+        return data.user;
       }
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const signInWithGoogle = async () => {
-    setIsLoading(true);
-    try {
-      await signInWithPopup(auth, googleAuthProvider);
-    } catch (err) {
-      console.error('Google Sign-in failed:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const signInWithMobilePin = async (phone: string, pin: string, fullName?: string) => {
-    const cleaned = phone.replace(/\s+/g, '');
-    if (cleaned.length < 11) {
-      throw new Error('Please enter a valid 11-digit Bangladesh mobile number (01XXX-XXXXXX).');
-    }
-    if (!/^\d{4}$/.test(pin)) {
-      throw new Error('TheSteps Quick Login requires a 4-digit OTP / PIN.');
-    }
-
-    const mobileProfile: UserProfile = {
-      uid: `mob-${cleaned.slice(-8)}`,
-      email: `${cleaned.slice(-8)}@mobile.thesteps.com.bd`,
-      displayName: fullName?.trim() || `TheSteps Shopper (${cleaned.slice(-4)})`,
-      phoneNumber: cleaned,
-      role: 'customer',
-      mfaEnabled: true,
-      mfaMethod: 'sms',
-      savedWishlist: currentUser?.savedWishlist || [],
-      collectedVouchers: currentUser?.collectedVouchers || ['SMART10'],
-      createdAt: new Date().toISOString()
-    };
-    setCurrentUser(mobileProfile);
-    localStorage.setItem('sd_auth_user', JSON.stringify(mobileProfile));
-  };
-
-  const switchDemoRole = (role: UserRole) => {
-    const profile = DEMO_PROFILES[role] || DEFAULT_ADMIN;
-    setCurrentUser(profile);
-    localStorage.setItem('sd_auth_user', JSON.stringify(profile));
-  };
-
-  const signOut = async () => {
-    try {
-      await fbSignOut(auth);
+      setCurrentUser(null);
+      setIsAdminSession(false);
+      setMfaVerified(false);
+      return null;
     } catch {
-      // ignore
+      // Attempt silent refresh using HttpOnly refresh cookie if access token expired
+      try {
+      const refreshed = await apiRequest<LoginResult>('/api/auth/refresh', { method: 'POST', skipRefresh: true });
+      if (refreshed.authenticated && refreshed.user) {
+        setInMemorySessionTokens(refreshed);
+        setCurrentUser(refreshed.user);
+        const roleSlug = refreshed.user.role;
+        setIsAdminSession(PRIVILEGED_ROLES.has(roleSlug) && roleSlug !== 'customer');
+        return refreshed.user;
+      }
+    } catch {
+      // No valid session
     }
+    clearInMemorySessionTokens();
     setCurrentUser(null);
+    setIsAdminSession(false);
+    setMfaVerified(false);
+    return null;
+  } finally {
+    setIsLoading(false);
+  }
+}, []);
+
+useEffect(() => {
+  // Purge any legacy client-side auth storage keys
+  try {
     localStorage.removeItem('sd_auth_user');
+    localStorage.removeItem('sd_registered_customers_v1');
     localStorage.removeItem('aura_auth_user');
-  };
+  } catch {
+    // ignore
+  }
+  hydrateFromBackend();
+}, [hydrateFromBackend]);
+
+const signInWithGoogle = async (portal: 'storefront' | 'admin' = 'storefront'): Promise<LoginResult> => {
+  const cred = await signInWithPopup(auth, googleAuthProvider);
+  const idToken = await cred.user.getIdToken();
+  const res = await apiRequest<LoginResult>('/api/auth/firebase-google', {
+    method: 'POST',
+    body: { idToken, portal }
+  });
+  setInMemorySessionTokens(res);
+  if (res.authenticated && res.user) {
+    setCurrentUser(res.user);
+    setIsAdminSession(PRIVILEGED_ROLES.has(res.user.role) && res.user.role !== 'customer');
+    setMfaVerified(true);
+  }
+  return res;
+};
+
+const registerWithAccount = async (data: {
+  fullName: string;
+  username?: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
+  confirmPassword?: string;
+  acceptedTerms?: boolean;
+}): Promise<LoginResult> => {
+  const res = await apiRequest<LoginResult>('/api/auth/register', {
+    method: 'POST',
+    body: data
+  });
+  setInMemorySessionTokens(res);
+  if (res.authenticated && res.user) {
+    setCurrentUser(res.user);
+    setIsAdminSession(false);
+  }
+  return res;
+};
+
+const signInWithCredentials = async (
+  identifier: string,
+  password: string,
+  rememberMe = false
+): Promise<LoginResult> => {
+  const res = await apiRequest<LoginResult>('/api/auth/login', {
+    method: 'POST',
+    body: { identifier, password, rememberMe }
+  });
+  setInMemorySessionTokens(res);
+  if (res.authenticated && res.user) {
+    setCurrentUser(res.user);
+    setIsAdminSession(false);
+    setMfaVerified(false);
+  }
+  return res;
+};
+
+const loginAdmin = async (
+  identifier: string,
+  password: string,
+  rememberMe = false
+): Promise<LoginResult> => {
+  const res = await apiRequest<LoginResult>('/api/admin/auth/login', {
+    method: 'POST',
+    body: { identifier, password, rememberMe }
+  });
+  setInMemorySessionTokens(res);
+  if (res.authenticated && res.user) {
+    setCurrentUser(res.user);
+    setIsAdminSession(true);
+    setMfaVerified(!res.user.mfaEnabled);
+  }
+  return res;
+};
+
+const verifyMfaChallenge = async (
+  code: string,
+  isAdminPortal = false,
+  rememberMe = false
+): Promise<LoginResult> => {
+  const endpoint = isAdminPortal ? '/api/admin/auth/verify-mfa' : '/api/auth/verify-mfa';
+  const mfaPendingToken = getInMemoryMfaPendingToken();
+  const res = await apiRequest<LoginResult>(endpoint, {
+    method: 'POST',
+    body: { code, rememberMe, ...(mfaPendingToken ? { mfaPendingToken } : {}) }
+  });
+  setInMemorySessionTokens(res);
+  if (res.authenticated && res.user) {
+    setCurrentUser(res.user);
+    setIsAdminSession(isAdminPortal);
+    setMfaVerified(true);
+  }
+  return res;
+};
+
+const signOut = async () => {
+  try {
+    await apiRequest('/api/auth/logout', { method: 'POST', skipRefresh: true });
+  } catch {
+    // ignore network error on logout
+  }
+  clearInMemorySessionTokens();
+  try {
+    await fbSignOut(auth);
+  } catch {
+    // ignore
+  }
+  setCurrentUser(null);
+  setIsAdminSession(false);
+  setMfaVerified(false);
+};
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!currentUser) return;
-    const updated = { ...currentUser, ...updates };
-    setCurrentUser(updated);
-    localStorage.setItem('sd_auth_user', JSON.stringify(updated));
-
-    if (fbUser) {
-      try {
-        await setDoc(doc(db, 'users', currentUser.uid), updates, { merge: true });
-      } catch (e) {
-        console.warn('Profile sync to Firestore skipped (offline/demo session):', e);
+    const res = await apiRequest<{ user: UserProfile }>('/api/auth/profile', {
+      method: 'PUT',
+      body: {
+        fullName: updates.displayName || updates.fullName,
+        phoneNumber: updates.phoneNumber,
+        photoURL: updates.photoURL,
+        addresses: updates.addresses,
+        savedWishlist: updates.savedWishlist,
+        collectedVouchers: updates.collectedVouchers
       }
-    }
-  };
-
-  const toggleMfa = async (enabled: boolean, method: 'sms' | 'email' | 'totp' = 'sms') => {
-    await updateProfile({
-      mfaEnabled: enabled,
-      mfaMethod: enabled ? method : 'none'
     });
+    setCurrentUser(res.user);
   };
 
-  const verifyMfaOtp = (code: string): boolean => {
-    if (code.length === 4 || code.length === 6) {
-      setIsMfaChallenged(false);
-      return true;
-    }
-    return false;
-  };
-
-  const saveAddress = (address: BangladeshAddress) => {
+  const saveAddress = async (address: BangladeshAddress) => {
     if (!currentUser) return;
     const existing = currentUser.addresses || [];
     const updated = [address, ...existing.filter((a) => a.detailedAddress !== address.detailedAddress)];
-    updateProfile({ addresses: updated });
+    await updateProfile({ addresses: updated });
   };
 
-  const toggleWishlist = (productId: string) => {
+  const toggleWishlist = async (productId: string) => {
     if (!currentUser) return;
     const currentList = currentUser.savedWishlist || [];
     const exists = currentList.includes(productId);
     const updated = exists ? currentList.filter((id) => id !== productId) : [productId, ...currentList];
-    updateProfile({ savedWishlist: updated });
+    await updateProfile({ savedWishlist: updated });
   };
 
-  const collectVoucher = (code: string) => {
+  const collectVoucher = async (code: string) => {
     if (!currentUser) return;
     const upper = code.trim().toUpperCase();
     const currentList = currentUser.collectedVouchers || [];
     if (!currentList.includes(upper)) {
-      updateProfile({ collectedVouchers: [...currentList, upper] });
+      await updateProfile({ collectedVouchers: [...currentList, upper] });
     }
   };
 
-  const isAdmin = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
-  const isSeller = currentUser?.role === 'seller';
+  const roleSlugs = new Set<string>([
+    ...(currentUser?.role ? [currentUser.role] : []),
+    ...(currentUser?.roles?.map((r) => r.slug) || [])
+  ]);
+
+  const userPerms = new Set<string>(currentUser?.permissions || []);
+
+  const hasPermission = (permission: string): boolean => {
+    if (!currentUser) return false;
+    if (roleSlugs.has('superadmin')) return true;
+    return userPerms.has(permission);
+  };
+
+  const hasAnyPermission = (permissions: string[]): boolean => {
+    return permissions.some((p) => hasPermission(p));
+  };
+
+  const isAdmin =
+    roleSlugs.has('superadmin') ||
+    roleSlugs.has('administrator') ||
+    roleSlugs.has('admin');
+  const isSeller = roleSlugs.has('seller');
   const isManager =
-    isAdmin ||
-    isSeller ||
-    currentUser?.role === 'product_manager' ||
-    currentUser?.role === 'inventory_manager' ||
-    currentUser?.role === 'order_manager' ||
-    currentUser?.role === 'accountant';
+    Boolean(currentUser) &&
+    (Array.from(roleSlugs).some((r) => PRIVILEGED_ROLES.has(r) && r !== 'customer') ||
+      hasAnyPermission([
+        'users.view',
+        'roles.view',
+        'security.view',
+        'products.view',
+        'orders.view',
+        'finance.view'
+      ]));
 
   const hasRole = (roles: UserRole[]): boolean => {
     if (!currentUser) return false;
-    if (currentUser.role === 'superadmin') return true;
-    return roles.includes(currentUser.role);
+    if (roleSlugs.has('superadmin')) return true;
+    return roles.some((r) => roleSlugs.has(r));
   };
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
-        fbUser,
         isLoading,
         isAdmin,
         isSeller,
         isManager,
+        isAdminSession,
+        mfaVerified,
         hasRole,
+        hasPermission,
+        hasAnyPermission,
+        refreshSessionUser: hydrateFromBackend,
         signInWithGoogle,
-        signInWithMobilePin,
-        switchDemoRole,
+        registerWithAccount,
+        signInWithCredentials,
+        loginAdmin,
+        verifyMfaChallenge,
         signOut,
         updateProfile,
-        toggleMfa,
-        isMfaChallenged,
-        verifyMfaOtp,
         saveAddress,
         toggleWishlist,
         collectVoucher

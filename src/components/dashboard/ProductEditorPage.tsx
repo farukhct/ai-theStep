@@ -30,6 +30,7 @@ import { Product, ProductVariant, GarmentSize } from '../../types';
 import { GARMENT_CATEGORIES } from '../../config/constants';
 import { MEDIA_ASSETS } from '../../config/mediaAssets';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import { LocalImageUploader } from '../common/LocalImageUploader';
 import {
   estimateImagesPayloadBytes,
@@ -173,6 +174,7 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
   onSubmit
 }) => {
   const { addToast } = useNotification();
+  const { isManager } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Core Identity
@@ -541,6 +543,8 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
     'w-full h-10 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3.5 text-xs sm:text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-[#465FFF] focus:bg-white dark:focus:bg-gray-900 transition-colors';
 
   const labelClass = 'block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5';
+
+  if (!isManager) return null;
 
   return (
     <form onSubmit={handleFormSubmit} className="space-y-6 pb-10">

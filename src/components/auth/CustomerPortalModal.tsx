@@ -12,7 +12,9 @@ import {
   ShoppingCart,
   CheckCircle2,
   Trash2,
-  Layers
+  Layers,
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
@@ -20,6 +22,7 @@ import { useCart } from '../../context/CartContext';
 import { useNotification } from '../../context/NotificationContext';
 import { Order, Product } from '../../types';
 import { optimizeLocalImage } from '../../utils/imageUtils';
+import { PersonalSecurityPanel } from './PersonalSecurityPanel';
 
 interface CustomerPortalModalProps {
   isOpen: boolean;
@@ -40,12 +43,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   onOpenAuth,
   onOpenCheckout
 }) => {
-  const { currentUser, updateProfile, toggleWishlist, isManager } = useAuth();
+  const { currentUser, updateProfile, toggleWishlist, isManager, signOut } = useAuth();
   const { orders, products, bids, coupons, cancelOrder } = useStore();
   const { addToCart, applyCouponCode, setIsCartOpen } = useCart();
   const { addToast } = useNotification();
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'bids' | 'wishlist' | 'vouchers' | 'profile'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'bids' | 'wishlist' | 'vouchers' | 'profile' | 'security'>('orders');
   const [displayNameInput, setDisplayNameInput] = useState(currentUser?.displayName || '');
   const [phoneInput, setPhoneInput] = useState(currentUser?.phoneNumber || '');
 
@@ -70,7 +73,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
               }}
               className="flex-1 py-2 bg-[#ff4300] text-white rounded text-xs font-semibold cursor-pointer"
             >
-              Login / Sign up
+              Sign In / Register
             </button>
           </div>
         </div>
@@ -161,6 +164,18 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 <span>Seller / Admin Hub</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={async () => {
+                await signOut();
+                onClose();
+                addToast('Signed Out', 'You have been signed out.', 'info');
+              }}
+              className="px-2.5 py-1.5 rounded bg-white/10 hover:bg-rose-600 text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
             <button type="button" onClick={onClose} className="p-1.5 text-neutral-300 hover:text-white cursor-pointer">
               <X className="w-5 h-5" />
             </button>
@@ -174,7 +189,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
             { id: 'bids', label: `My Bids (${myBids.length})`, icon: Handshake },
             { id: 'wishlist', label: `Wishlist (${wishlistProducts.length})`, icon: Heart },
             { id: 'vouchers', label: `Vouchers (${collectedVouchers.length})`, icon: Ticket },
-            { id: 'profile', label: 'Profile & Addresses', icon: User }
+            { id: 'profile', label: 'Profile & Addresses', icon: User },
+            { id: 'security', label: 'MFA & Sessions', icon: ShieldCheck }
           ].map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -476,6 +492,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'security' && (
+            <PersonalSecurityPanel initialSection="mfa" />
           )}
         </div>
       </div>
