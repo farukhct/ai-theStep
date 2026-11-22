@@ -185,6 +185,7 @@ export interface CartItem {
   purchasePrice: number;
   quantity: number;
   maxStock: number;
+  freeDelivery?: boolean;
 }
 
 export interface OrderItem {
@@ -223,10 +224,13 @@ export interface Order {
   shippingFee: number;
   tax: number;
   grandTotal: number;
+  couponCode?: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;
+  paymentSessionId?: string;
   transactionId?: string;
+  emiPlan?: 'full' | '3m' | '6m' | '12m';
   trackingNumber?: string;
   orderDate: string;
   remarks?: string;

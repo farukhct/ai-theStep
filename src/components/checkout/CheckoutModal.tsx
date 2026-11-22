@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import { 
-  X, 
-  ShieldCheck, 
-  MapPin, 
-  CreditCard, 
-  Truck, 
-  CheckCircle, 
-  Lock, 
+import React, { useState, useEffect } from 'react';
+import {
+  X,
+  ShieldCheck,
+  MapPin,
+  CreditCard,
+  CheckCircle,
+  Lock,
   AlertCircle,
   ArrowRight,
   ArrowLeft,
@@ -25,8 +24,9 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
 import { useNotification } from '../../context/NotificationContext';
-import { PaymentGatewayModal } from './PaymentGatewayModal';
+import { PaymentGatewayModal, PaymentGatewaySuccessResult } from './PaymentGatewayModal';
 import { EpsLogo, PaymentChannelLogo } from './EpsPaymentBadge';
+import { apiRequest, ApiError } from '../../services/apiClient';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -34,12 +34,30 @@ interface CheckoutModalProps {
   onOrderSuccess: (order: Order) => void;
 }
 
+const BD_PHONE_REGEX = /^(\+?880)?0?1[3-9]\d{8}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizePhoneInput(val: string): string {
+  return val.replace(/[\s-]/g, '');
+}
+
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
   onClose,
   onOrderSuccess
 }) => {
-  const { cart, subtotal, discount, shippingFee, grandTotal, clearCart, selectedDivision, setSelectedDivision } = useCart();
+  const {
+    cart,
+    subtotal,
+    discount,
+    shippingFee,
+    grandTotal,
+    appliedCoupon,
+    hasStockIssue,
+    clearCart,
+    selectedDivision,
+    setSelectedDivision
+  } = useCart();
   const { currentUser, saveAddress } = useAuth();
   const { createOrder } = useStore();
   const { addToast } = useNotification();
@@ -51,24 +69,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [paymentSession, setPaymentSession] = useState<{
+    paymentSessionId?: string;
+    orderNumber: string;
+    debugOtp?: string;
+    amount: number;
+  } | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => `chk-${Date.now()}`);
 
-  // Shipping Form State
-  const defaultSavedAddr = currentUser?.addresses?.[0];
-  const [shipping, setShipping] = useState<BangladeshAddress>({
-    fullName: currentUser?.displayName || defaultSavedAddr?.fullName || '',
-    phone: currentUser?.phoneNumber || defaultSavedAddr?.phone || '',
-    altPhone: defaultSavedAddr?.altPhone || '',
-    email: currentUser?.email || defaultSavedAddr?.email || '',
-    division: selectedDivision || defaultSavedAddr?.division || 'Dhaka',
-    district: defaultSavedAddr?.district || 'Dhaka City',
-    upazila: defaultSavedAddr?.upazila || '',
-    detailedAddress: defaultSavedAddr?.detailedAddress || '',
-    postcode: defaultSavedAddr?.postcode || '',
-    deliveryNotes: defaultSavedAddr?.deliveryNotes || ''
-  });
+  const buildInitialShipping = (): BangladeshAddress => {
+    const savedAddr = currentUser?.addresses?.[0];
+    const div = selectedDivision || savedAddr?.division || 'Dhaka';
+    const allowedDistricts = BD_DISTRICTS_MAP[div] || ['Dhaka City'];
+    const dist = savedAddr?.district && allowedDistricts.includes(savedAddr.district)
+      ? savedAddr.district
+      : allowedDistricts[0];
+    return {
+      fullName: currentUser?.displayName || savedAddr?.fullName || '',
+      phone: currentUser?.phoneNumber || savedAddr?.phone || '',
+      altPhone: savedAddr?.altPhone || '',
+      email: currentUser?.email || savedAddr?.email || '',
+      division: div,
+      district: dist,
+      upazila: savedAddr?.upazila || '',
+      detailedAddress: savedAddr?.detailedAddress || '',
+      postcode: savedAddr?.postcode || '',
+      deliveryNotes: savedAddr?.deliveryNotes || ''
+    };
+  };
 
-  // Billing Form State
-  const [billing, setBilling] = useState<BangladeshAddress>({
+  const buildInitialBilling = (): BangladeshAddress => ({
     fullName: currentUser?.displayName || '',
     phone: currentUser?.phoneNumber || '',
     email: currentUser?.email || '',
@@ -79,7 +109,39 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     postcode: ''
   });
 
+  const [shipping, setShipping] = useState<BangladeshAddress>(buildInitialShipping);
+  const [billing, setBilling] = useState<BangladeshAddress>(buildInitialBilling);
+
+  // Reset modal cleanly every time it opens
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setError('');
+      setIsSubmitting(false);
+      setIsGatewayOpen(false);
+      setPaymentSession(null);
+      setIdempotencyKey(`chk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+      setShipping(buildInitialShipping());
+      setBilling(buildInitialBilling());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Keep division synced when opened
+  useEffect(() => {
+    if (isOpen && selectedDivision && shipping.division !== selectedDivision) {
+      const allowedDistricts = BD_DISTRICTS_MAP[selectedDivision] || ['Dhaka City'];
+      setShipping((prev) => ({
+        ...prev,
+        division: selectedDivision,
+        district: allowedDistricts.includes(prev.district) ? prev.district : allowedDistricts[0]
+      }));
+    }
+  }, [isOpen, selectedDivision, shipping.division]);
+
   if (!isOpen) return null;
+
+  const activeCouponCode = discount > 0 && appliedCoupon ? appliedCoupon.code : undefined;
 
   const handleDivisionChange = (div: string) => {
     setShipping((prev) => ({
@@ -90,17 +152,46 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setSelectedDivision(div);
   };
 
-  const validateShipping = () => {
-    if (!shipping.fullName.trim()) return 'Please enter your full name.';
-    if (!shipping.phone.trim() || shipping.phone.length < 11) {
-      return 'Please enter a valid 11-digit Bangladeshi mobile number (+880).';
+  const handleBillingDivisionChange = (div: string) => {
+    setBilling((prev) => ({
+      ...prev,
+      division: div,
+      district: BD_DISTRICTS_MAP[div]?.[0] || 'Dhaka City'
+    }));
+  };
+
+  const validateShipping = (): string => {
+    if (cart.length === 0) return 'Your cart is empty. Add items before checking out.';
+    if (hasStockIssue) return 'One or more items in your cart exceed available stock.';
+    if (shipping.fullName.trim().length < 2) return 'Please enter your full name.';
+    if (!BD_PHONE_REGEX.test(normalizePhoneInput(shipping.phone))) {
+      return 'Please enter a valid 11-digit Bangladeshi mobile number (e.g. 017XXXXXXXX).';
     }
-    if (!shipping.detailedAddress.trim()) {
-      return 'Please enter your detailed house, road, and area address.';
+    if (shipping.altPhone && shipping.altPhone.trim() && !BD_PHONE_REGEX.test(normalizePhoneInput(shipping.altPhone))) {
+      return 'Alternative phone must be a valid 11-digit Bangladeshi mobile number.';
+    }
+    if (shipping.email && shipping.email.trim() && !EMAIL_REGEX.test(shipping.email.trim())) {
+      return 'Please enter a valid email address for order updates and invoices.';
     }
     if (!shipping.upazila.trim()) {
       return 'Please specify your Thana / Upazila.';
     }
+    if (shipping.detailedAddress.trim().length < 5) {
+      return 'Please enter your detailed house, road, and area address.';
+    }
+    return '';
+  };
+
+  const validateBilling = (): string => {
+    if (cart.length === 0) return 'Your cart is empty. Add items before checking out.';
+    if (hasStockIssue) return 'One or more items in your cart exceed available stock.';
+    if (isSameBilling) return '';
+    if (billing.fullName.trim().length < 2) return 'Please enter a billing recipient full name.';
+    if (!BD_PHONE_REGEX.test(normalizePhoneInput(billing.phone))) {
+      return 'Please enter a valid 11-digit Bangladeshi mobile number for billing.';
+    }
+    if (!billing.upazila.trim()) return 'Please specify the billing Thana / Upazila.';
+    if (billing.detailedAddress.trim().length < 5) return 'Please enter the detailed billing street address.';
     return '';
   };
 
@@ -111,20 +202,48 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
     setError('');
-    // Auto-save address for future orders
-    saveAddress(shipping);
+    if (currentUser) {
+      saveAddress(shipping).catch(() => {
+        // Non-blocking profile save
+      });
+    }
     setStep(2);
   };
 
+  const handleNextToPayment = () => {
+    const err = validateBilling();
+    if (err) {
+      setError(err);
+      return;
+    }
+    setError('');
+    setStep(3);
+  };
+
   const handleProceedToPayment = async () => {
-    if (paymentMethod === 'cod') {
-      // Cash on delivery: instant order creation with payment status = pending
+    if (isSubmitting) return;
+    const shipErr = validateShipping();
+    if (shipErr) {
+      setError(shipErr);
+      setStep(1);
+      return;
+    }
+    const billErr = validateBilling();
+    if (billErr) {
+      setError(billErr);
+      setStep(2);
+      return;
+    }
+
+    setError('');
+
+    if (paymentMethod === 'cod' || grandTotal <= 0) {
       setIsSubmitting(true);
       try {
         const order = await createOrder({
-          customerName: shipping.fullName,
-          contactNumber: shipping.phone,
-          email: shipping.email || currentUser?.email || 'customer@thesteps.com.bd',
+          customerName: shipping.fullName.trim(),
+          contactNumber: shipping.phone.trim(),
+          email: shipping.email.trim() || currentUser?.email || 'customer@thesteps.com.bd',
           shippingAddress: shipping,
           billingAddress: isSameBilling ? shipping : billing,
           items: cart,
@@ -132,9 +251,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           discount,
           shippingFee,
           grandTotal,
-          paymentMethod: 'cod',
-          paymentStatus: 'pending',
-          remarks: 'Cash on delivery verified'
+          couponCode: activeCouponCode,
+          paymentMethod: grandTotal <= 0 ? 'cod' : 'cod',
+          paymentStatus: grandTotal <= 0 ? 'paid' : 'pending',
+          idempotencyKey,
+          remarks: grandTotal <= 0 ? 'Paid in full by voucher' : 'Cash on delivery verified'
         });
         clearCart();
         setIsSubmitting(false);
@@ -142,35 +263,83 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         onOrderSuccess(order);
       } catch (e: any) {
         setIsSubmitting(false);
-        setError(e.message || 'Failed to place order');
+        setError(e?.message || 'Failed to place order.');
       }
-    } else {
-      // Open Gateway simulation for bKash, Nagad, Sonali Bank, Card, Bank Transfer
+      return;
+    }
+
+    // Initiate verified EPS online payment session with backend
+    setIsSubmitting(true);
+    try {
+      const initiated = await apiRequest<{
+        paymentSessionId: string;
+        orderNumber: string;
+        amount: number;
+        debugOtp?: string;
+      }>('/api/commerce/payments/initiate', {
+        method: 'POST',
+        body: {
+          paymentMethod,
+          items: cart,
+          division: shipping.division,
+          couponCode: activeCouponCode,
+          customerName: shipping.fullName.trim(),
+          contactNumber: shipping.phone.trim(),
+          email: shipping.email.trim() || currentUser?.email || 'customer@thesteps.com.bd'
+        }
+      });
+
+      setPaymentSession({
+        paymentSessionId: initiated.paymentSessionId,
+        orderNumber: initiated.orderNumber,
+        amount: initiated.amount,
+        debugOtp: initiated.debugOtp
+      });
+      setIsSubmitting(false);
+      setIsGatewayOpen(true);
+    } catch (e: any) {
+      if (e instanceof ApiError && e.status >= 400 && e.status < 500) {
+        setIsSubmitting(false);
+        setError(e.message || 'Could not initiate online payment.');
+        return;
+      }
+      // Graceful fallback if offline
+      setPaymentSession({
+        orderNumber: `SD-26-${Date.now().toString().slice(-4)}`,
+        amount: grandTotal
+      });
+      setIsSubmitting(false);
       setIsGatewayOpen(true);
     }
   };
 
-  const handleGatewaySuccess = async (transactionId: string) => {
+  const handleGatewaySuccess = async (result: PaymentGatewaySuccessResult) => {
     setIsGatewayOpen(false);
     setIsSubmitting(true);
+    setError('');
     try {
       const channelInfo = getPaymentChannelInfo(paymentMethod);
-      const isPaid = paymentMethod !== 'bank_transfer';
+      const emiNote = result.emiPlan && result.emiPlan !== 'full' ? ` · EMI ${result.emiPlan.toUpperCase()}` : '';
       const order = await createOrder({
-        customerName: shipping.fullName,
-        contactNumber: shipping.phone,
-        email: shipping.email || currentUser?.email || 'customer@thesteps.com.bd',
+        customerName: shipping.fullName.trim(),
+        contactNumber: shipping.phone.trim(),
+        email: shipping.email.trim() || currentUser?.email || 'customer@thesteps.com.bd',
         shippingAddress: shipping,
         billingAddress: isSameBilling ? shipping : billing,
         items: cart,
         subtotal,
         discount,
         shippingFee,
-        grandTotal,
+        grandTotal: paymentSession?.amount ?? grandTotal,
+        couponCode: activeCouponCode,
         paymentMethod,
-        paymentStatus: isPaid ? 'paid' : 'pending',
-        transactionId,
-        remarks: `EPS ${channelInfo.name} (${channelInfo.categoryLabel}) verified: ${transactionId}`
+        paymentStatus: result.paymentStatus,
+        paymentSessionId: result.paymentSessionId,
+        transactionId: result.transactionId,
+        emiPlan: result.emiPlan,
+        orderNumber: paymentSession?.orderNumber,
+        idempotencyKey,
+        remarks: `EPS ${channelInfo.name} (${channelInfo.categoryLabel}) ref: ${result.transactionId}${emiNote}`
       });
       clearCart();
       setIsSubmitting(false);
@@ -178,12 +347,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       onOrderSuccess(order);
     } catch (e: any) {
       setIsSubmitting(false);
-      setError(e.message || 'Failed to finalize transaction');
+      const msg = e?.message || 'Failed to finalize order after payment authorization.';
+      setError(msg);
+      addToast('Order Finalization Error', msg, 'error');
     }
   };
 
   const handlePaymentTabChange = (cat: PaymentCategory) => {
     setActivePaymentTab(cat);
+    setError('');
     const currentCat = getPaymentChannelInfo(paymentMethod).category;
     if (currentCat !== cat) {
       const firstInCat = EPS_PAYMENT_CHANNELS.find((ch) => ch.category === cat);
@@ -202,11 +374,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <Lock className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold">Secure Garments Checkout</h3>
+                <h3 className="text-base font-bold">Secure TheSteps Checkout</h3>
                 <p className="text-xs text-neutral-400">256-Bit Encrypted Bangladesh Payment Architecture</p>
               </div>
             </div>
             <button
+              type="button"
               onClick={onClose}
               className="p-1.5 text-neutral-400 hover:text-white rounded-lg transition-colors cursor-pointer"
             >
@@ -336,8 +509,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       value={shipping.upazila}
                       onChange={(e) => setShipping({ ...shipping, upazila: e.target.value })}
                       className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 focus:outline-none"
-                    >
-                    </input>
+                    />
                   </div>
                 </div>
 
@@ -384,29 +556,60 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
 
                   {!isSameBilling && (
-                    <div className="pt-2 space-y-3 border-t border-neutral-200">
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="pt-3 space-y-3 border-t border-neutral-200">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <input
                           type="text"
-                          placeholder="Billing Name"
+                          placeholder="Billing Full Name *"
                           value={billing.fullName}
                           onChange={(e) => setBilling({ ...billing, fullName: e.target.value })}
-                          className="bg-white border border-neutral-300 rounded-lg px-3 py-1.5"
+                          className="bg-white border border-neutral-300 rounded-lg px-3 py-2"
                         />
                         <input
-                          type="text"
-                          placeholder="Billing Phone"
+                          type="tel"
+                          placeholder="Billing Mobile (017XXXXXXXX) *"
                           value={billing.phone}
                           onChange={(e) => setBilling({ ...billing, phone: e.target.value })}
-                          className="bg-white border border-neutral-300 rounded-lg px-3 py-1.5"
+                          className="bg-white border border-neutral-300 rounded-lg px-3 py-2 font-mono"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <select
+                          value={billing.division}
+                          onChange={(e) => handleBillingDivisionChange(e.target.value)}
+                          className="bg-white border border-neutral-300 rounded-lg px-2.5 py-2"
+                        >
+                          {BD_DIVISIONS.map((div) => (
+                            <option key={div} value={div}>
+                              {div}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={billing.district}
+                          onChange={(e) => setBilling({ ...billing, district: e.target.value })}
+                          className="bg-white border border-neutral-300 rounded-lg px-2.5 py-2"
+                        >
+                          {(BD_DISTRICTS_MAP[billing.division] || ['Dhaka City']).map((dist) => (
+                            <option key={dist} value={dist}>
+                              {dist}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Upazila / Thana *"
+                          value={billing.upazila}
+                          onChange={(e) => setBilling({ ...billing, upazila: e.target.value })}
+                          className="bg-white border border-neutral-300 rounded-lg px-3 py-2"
                         />
                       </div>
                       <input
                         type="text"
-                        placeholder="Detailed Billing Address"
+                        placeholder="Detailed Billing Address *"
                         value={billing.detailedAddress}
                         onChange={(e) => setBilling({ ...billing, detailedAddress: e.target.value })}
-                        className="w-full bg-white border border-neutral-300 rounded-lg px-3 py-1.5"
+                        className="w-full bg-white border border-neutral-300 rounded-lg px-3 py-2"
                       />
                     </div>
                   )}
@@ -417,6 +620,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="flex justify-between items-start mb-2">
                     <h5 className="font-bold uppercase tracking-wider text-neutral-500 text-[11px]">Deliver To:</h5>
                     <button
+                      type="button"
                       onClick={() => setStep(1)}
                       className="text-neutral-900 font-bold underline text-[11px] cursor-pointer"
                     >
@@ -458,7 +662,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-emerald-400">
-                      <span>Discount</span>
+                      <span>Discount{activeCouponCode ? ` (${activeCouponCode})` : ''}</span>
                       <span className="font-mono">-৳{discount.toLocaleString()}</span>
                     </div>
                   )}
@@ -587,7 +791,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           Selected: {selectedChannel.name}
                         </p>
                         <p className="text-[10px] text-neutral-500 truncate">
-                          {selectedChannel.categoryLabel} · Atomic stock reservation on confirmation
+                          {selectedChannel.categoryLabel} · Atomic stock &amp; payment verification
                         </p>
                       </div>
                     </div>
@@ -602,7 +806,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           <div className="p-4 bg-neutral-50 border-t border-neutral-200 flex justify-between items-center shrink-0">
             {step > 1 ? (
               <button
-                onClick={() => setStep((s) => (s - 1) as any)}
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setStep((s) => (s - 1) as 1 | 2 | 3);
+                }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-bold text-xs rounded-lg transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -614,8 +822,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {step === 1 && (
               <button
+                type="button"
+                disabled={cart.length === 0 || hasStockIssue}
                 onClick={handleNextToReview}
-                className="flex items-center gap-2 px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-400 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
               >
                 <span>Continue to Review</span>
                 <ArrowRight className="w-4 h-4" />
@@ -624,8 +834,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {step === 2 && (
               <button
-                onClick={() => setStep(3)}
-                className="flex items-center gap-2 px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                type="button"
+                disabled={cart.length === 0 || hasStockIssue}
+                onClick={handleNextToPayment}
+                className="flex items-center gap-2 px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-400 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
               >
                 <span>Select Payment</span>
                 <ArrowRight className="w-4 h-4" />
@@ -634,12 +846,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {step === 3 && (
               <button
-                disabled={isSubmitting}
+                type="button"
+                disabled={isSubmitting || cart.length === 0 || hasStockIssue}
                 onClick={handleProceedToPayment}
                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-neutral-400 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer shadow-md"
               >
                 <span>
-                  {paymentMethod === 'cod'
+                  {isSubmitting
+                    ? 'Preparing...'
+                    : paymentMethod === 'cod' || grandTotal <= 0
                     ? 'Confirm Order (COD)'
                     : `Pay ৳${grandTotal.toLocaleString()} · ${getPaymentChannelInfo(paymentMethod).shortName}`}
                 </span>
@@ -650,15 +865,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         </div>
       </div>
 
-      {/* EPS Payment Gateway Simulator */}
+      {/* EPS Payment Gateway */}
       {isGatewayOpen && (
         <PaymentGatewayModal
           isOpen={isGatewayOpen}
           paymentMethod={paymentMethod}
-          amount={grandTotal}
-          orderNumber={`AURA-26-${Date.now().toString().slice(-4)}`}
+          amount={paymentSession?.amount ?? grandTotal}
+          orderNumber={paymentSession?.orderNumber || `SD-26-${Date.now().toString().slice(-4)}`}
+          paymentSessionId={paymentSession?.paymentSessionId}
+          debugOtpHint={paymentSession?.debugOtp}
+          customerName={shipping.fullName}
           onSuccess={handleGatewaySuccess}
-          onCancel={() => setIsGatewayOpen(false)}
+          onCancel={() => {
+            setIsGatewayOpen(false);
+            setPaymentSession(null);
+          }}
         />
       )}
     </>

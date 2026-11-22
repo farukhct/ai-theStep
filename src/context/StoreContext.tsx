@@ -34,9 +34,11 @@ import {
   INITIAL_BIDS
 } from '../config/constants';
 import { useAuth } from './AuthContext';
+import { useCart } from './CartContext';
 import { useNotification } from './NotificationContext';
 import { getPaymentChannelName } from '../config/epsPaymentOptions';
 import { handleFirestoreError, OperationType } from '../utils/firestoreError';
+import { apiRequest, ApiError } from '../services/apiClient';
 
 interface FinancialSummary {
   grossSales: number;
@@ -92,9 +94,14 @@ interface StoreContextType {
     discount: number;
     shippingFee: number;
     grandTotal: number;
+    couponCode?: string;
     paymentMethod: PaymentMethod;
     paymentStatus?: PaymentStatus;
+    paymentSessionId?: string;
     transactionId?: string;
+    emiPlan?: 'full' | '3m' | '6m' | '12m';
+    orderNumber?: string;
+    idempotencyKey?: string;
     remarks?: string;
   }) => Promise<Order>;
   updateOrderStatus: (orderId: string, newStatus: OrderStatus, note?: string) => Promise<void>;
@@ -144,6 +151,7 @@ const StoreContext = createContext<StoreContextType | null>(null);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, isManager } = useAuth();
+  const { reconcileCartWithProducts } = useCart();
   const fbUser = auth.currentUser;
   const { addToast, addNotification } = useNotification();
 
@@ -278,7 +286,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     localStorage.setItem('sd_products', JSON.stringify(products));
-  }, [products]);
+    reconcileCartWithProducts(products);
+  }, [products, reconcileCartWithProducts]);
 
   useEffect(() => {
     localStorage.setItem('sd_orders', JSON.stringify(orders));
@@ -562,18 +571,54 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     discount: number;
     shippingFee: number;
     grandTotal: number;
+    couponCode?: string;
     paymentMethod: PaymentMethod;
     paymentStatus?: PaymentStatus;
+    paymentSessionId?: string;
     transactionId?: string;
+    emiPlan?: 'full' | '3m' | '6m' | '12m';
+    orderNumber?: string;
+    idempotencyKey?: string;
     remarks?: string;
   }): Promise<Order> => {
-    const orderId = `ord-${Date.now().toString().slice(-6)}`;
-    const orderNumber = `SD-26-${Date.now().toString().slice(-4)}`;
+    let serverOrder: Order | null = null;
+    try {
+      const response = await apiRequest<{ order: Order }>('/api/commerce/orders', {
+        method: 'POST',
+        body: {
+          customerName: orderData.customerName,
+          contactNumber: orderData.contactNumber,
+          email: orderData.email,
+          shippingAddress: orderData.shippingAddress,
+          billingAddress: orderData.billingAddress,
+          items: orderData.items,
+          couponCode: orderData.couponCode,
+          paymentMethod: orderData.paymentMethod,
+          paymentSessionId: orderData.paymentSessionId,
+          transactionId: orderData.transactionId,
+          remarks: orderData.remarks,
+          idempotencyKey: orderData.idempotencyKey
+        }
+      });
+      if (response?.order) {
+        serverOrder = response.order;
+      }
+    } catch (err) {
+      // Surface authoritative backend validation, stock, coupon, or payment errors
+      if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
+        throw err;
+      }
+      // Graceful fallback only on offline / 5xx network failure
+      console.warn('Order backend unreachable, completing order in local store fallback:', err);
+    }
+
     const nowIso = new Date().toISOString();
+    const orderId = serverOrder?.id || `ord-${Date.now().toString().slice(-6)}`;
+    const orderNumber = serverOrder?.orderNumber || orderData.orderNumber || `SD-26-${Date.now().toString().slice(-4)}`;
+    const initialOrderStatus: OrderStatus =
+      serverOrder?.orderStatus || (orderData.paymentStatus === 'paid' ? 'paid' : 'pending_payment');
 
-    const initialOrderStatus: OrderStatus = orderData.paymentStatus === 'paid' ? 'paid' : 'pending_payment';
-
-    const newOrder: Order = {
+    const newOrder: Order = serverOrder || {
       id: orderId,
       orderNumber,
       customerId: currentUser?.uid || 'guest-cust',
@@ -600,10 +645,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       shippingFee: orderData.shippingFee,
       tax: 0,
       grandTotal: orderData.grandTotal,
+      couponCode: orderData.couponCode,
       paymentMethod: orderData.paymentMethod,
       paymentStatus: orderData.paymentStatus || 'pending',
       orderStatus: initialOrderStatus,
+      paymentSessionId: orderData.paymentSessionId,
       transactionId: orderData.transactionId || `SD-TRX-${Date.now().toString().slice(-8)}`,
+      emiPlan: orderData.emiPlan,
       trackingNumber: `SD-TRK-${Math.floor(100000 + Math.random() * 900000)}`,
       orderDate: nowIso,
       remarks: orderData.remarks || `Order placed via ${getPaymentChannelName(orderData.paymentMethod)}`,
@@ -620,49 +668,71 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ]
     };
 
-    setProducts((prevProducts) => {
-      const updatedProducts = [...prevProducts];
-      orderData.items.forEach((item) => {
-        const prodIndex = updatedProducts.findIndex((p) => p.id === item.productId);
-        if (prodIndex > -1) {
-          const targetProd = { ...updatedProducts[prodIndex] };
-          const varIndex = targetProd.variants.findIndex((v) => v.id === item.variantId);
-          if (varIndex > -1) {
-            const targetVar = { ...targetProd.variants[varIndex] };
-            const prevStock = targetVar.stock;
-            const newStock = Math.max(0, prevStock - item.quantity);
-            targetVar.stock = newStock;
-            targetVar.reservedStock = (targetVar.reservedStock || 0) + item.quantity;
-            targetProd.variants[varIndex] = targetVar;
-            targetProd.availableQuantity = targetProd.variants.reduce((sum, v) => sum + v.stock, 0);
-            if (targetProd.isFlashDeal && typeof targetProd.flashStockLeft === 'number') {
-              targetProd.flashStockLeft = Math.max(0, targetProd.flashStockLeft - item.quantity);
-              targetProd.flashSoldCount = (targetProd.flashSoldCount || 0) + item.quantity;
-            }
-            updatedProducts[prodIndex] = targetProd;
-
-            const tx: InventoryTransaction = {
-              id: `tx-sale-${Date.now()}-${item.variantId}`,
-              productId: item.productId,
-              productName: item.productName,
-              variantId: item.variantId,
-              variantSku: item.variantSku,
-              transactionType: 'sales',
-              quantityIn: 0,
-              quantityOut: item.quantity,
-              previousQuantity: prevStock,
-              newQuantity: newStock,
-              referenceNumber: orderNumber,
-              remarks: `Customer Order ${orderNumber} (${orderData.customerName})`,
-              transactionDate: nowIso,
-              userId: currentUser?.email || 'guest'
-            };
-            setTransactions((prevTx) => [tx, ...prevTx]);
-          }
-        }
+    // Prepare inventory transactions synchronously from current products snapshot
+    const saleTransactions: InventoryTransaction[] = [];
+    orderData.items.forEach((item) => {
+      const targetProd = products.find((p) => p.id === item.productId);
+      const targetVar = targetProd?.variants.find((v) => v.id === item.variantId);
+      const prevStock = targetVar?.stock ?? 0;
+      const newStock = Math.max(0, prevStock - item.quantity);
+      saleTransactions.push({
+        id: `tx-sale-${Date.now()}-${item.variantId}`,
+        productId: item.productId,
+        productName: item.productName,
+        variantId: item.variantId,
+        variantSku: item.variantSku,
+        transactionType: 'sales',
+        quantityIn: 0,
+        quantityOut: item.quantity,
+        previousQuantity: prevStock,
+        newQuantity: newStock,
+        referenceNumber: orderNumber,
+        remarks: `Customer Order ${orderNumber} (${orderData.customerName})`,
+        transactionDate: nowIso,
+        userId: currentUser?.email || 'guest'
       });
-      return updatedProducts;
     });
+
+    setProducts((prevProducts) =>
+      prevProducts.map((prod) => {
+        const matchingItems = orderData.items.filter((it) => it.productId === prod.id);
+        if (matchingItems.length === 0) return prod;
+        let totalSoldForProd = 0;
+        const updatedVariants = prod.variants.map((v) => {
+          const orderedForVar = matchingItems
+            .filter((it) => it.variantId === v.id)
+            .reduce((sum, it) => sum + it.quantity, 0);
+          if (orderedForVar === 0) return v;
+          totalSoldForProd += orderedForVar;
+          return {
+            ...v,
+            stock: Math.max(0, v.stock - orderedForVar)
+          };
+        });
+        return {
+          ...prod,
+          variants: updatedVariants,
+          availableQuantity: updatedVariants.reduce((sum, v) => sum + v.stock, 0),
+          ...(prod.isFlashDeal && typeof prod.flashStockLeft === 'number'
+            ? {
+                flashStockLeft: Math.max(0, prod.flashStockLeft - totalSoldForProd),
+                flashSoldCount: (prod.flashSoldCount || 0) + totalSoldForProd
+              }
+            : {})
+        };
+      })
+    );
+
+    if (saleTransactions.length > 0) {
+      setTransactions((prevTx) => [...saleTransactions, ...prevTx]);
+    }
+
+    if (orderData.couponCode) {
+      const usedCode = orderData.couponCode.trim().toUpperCase();
+      setCoupons((prev) =>
+        prev.map((c) => (c.code.toUpperCase() === usedCode ? { ...c, usageCount: c.usageCount + 1 } : c))
+      );
+    }
 
     setOrders((prev) => [newOrder, ...prev]);
 
@@ -670,20 +740,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       'ORDER_CREATED',
       'Order',
       orderNumber,
-      `New order ${orderNumber} placed by ${orderData.customerName} for ৳${orderData.grandTotal} via ${getPaymentChannelName(orderData.paymentMethod)}`
+      `New order ${orderNumber} placed by ${orderData.customerName} for ৳${newOrder.grandTotal} via ${getPaymentChannelName(orderData.paymentMethod)}`
     );
 
     addNotification(
       `New Order #${orderNumber}`,
-      `Order total ৳${orderData.grandTotal.toLocaleString()} via ${getPaymentChannelName(orderData.paymentMethod)} (${orderData.shippingAddress.division}).`,
+      `Order total ৳${newOrder.grandTotal.toLocaleString()} via ${getPaymentChannelName(orderData.paymentMethod)} (${orderData.shippingAddress.division}).`,
       'order'
     );
 
-    if (fbUser) {
+    if (fbUser && fbUser.emailVerified) {
       try {
-        await setDoc(doc(db, 'orders', orderId), newOrder);
+        await setDoc(doc(db, 'orders', newOrder.id), {
+          ...newOrder,
+          customerId: fbUser.uid
+        });
       } catch (e) {
-        handleFirestoreError(e, OperationType.CREATE, `orders/${orderId}`);
+        console.warn('Firestore order sync skipped:', e);
       }
     }
 
@@ -692,57 +765,69 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus, note?: string) => {
     const nowIso = new Date().toISOString();
-    let updatedOrder: Order | null = null;
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
+
+    try {
+      await apiRequest(`/api/commerce/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: { status: newStatus, note }
+      });
+    } catch (e) {
+      console.warn('Order status backend sync skipped:', e);
+    }
+
+    const nextPaymentStatus: PaymentStatus =
+      newStatus === 'refunded'
+        ? 'refunded'
+        : newStatus === 'paid' || newStatus === 'delivered'
+        ? 'paid'
+        : targetOrder.paymentStatus;
+
+    const updatedStatusHistory = [
+      ...targetOrder.statusHistory,
+      {
+        status: newStatus,
+        timestamp: nowIso,
+        updatedBy: currentUser?.displayName || 'Admin Supervisor',
+        note: note || `Status transitioned to ${newStatus}`
+      }
+    ];
 
     setOrders((prev) =>
-      prev.map((ord) => {
-        if (ord.id === orderId) {
-          const updated: Order = {
-            ...ord,
-            orderStatus: newStatus,
-            paymentStatus:
-              newStatus === 'paid' || newStatus === 'confirmed' || newStatus === 'shipped' || newStatus === 'delivered'
-                ? 'paid'
-                : ord.paymentStatus,
-            statusHistory: [
-              ...ord.statusHistory,
-              {
-                status: newStatus,
-                timestamp: nowIso,
-                updatedBy: currentUser?.displayName || 'Admin Supervisor',
-                note: note || `Status transitioned to ${newStatus}`
-              }
-            ]
-          };
-          updatedOrder = updated;
-          return updated;
-        }
-        return ord;
-      })
+      prev.map((ord) =>
+        ord.id === orderId
+          ? {
+              ...ord,
+              orderStatus: newStatus,
+              paymentStatus: nextPaymentStatus,
+              statusHistory: updatedStatusHistory
+            }
+          : ord
+      )
     );
 
-    if (updatedOrder) {
-      addAuditLog(
-        'ORDER_STATUS_UPDATE',
-        'Order',
-        (updatedOrder as Order).orderNumber,
-        `Order ${(updatedOrder as Order).orderNumber} status changed to ${newStatus.toUpperCase()}`
-      );
-      addToast(
-        'Order Updated',
-        `Order ${(updatedOrder as Order).orderNumber} is now ${newStatus.replace('_', ' ').toUpperCase()}.`,
-        'success'
-      );
+    addAuditLog(
+      'ORDER_STATUS_UPDATE',
+      'Order',
+      targetOrder.orderNumber,
+      `Order ${targetOrder.orderNumber} status changed to ${newStatus.toUpperCase()}`
+    );
+    addToast(
+      'Order Updated',
+      `Order ${targetOrder.orderNumber} is now ${newStatus.replace('_', ' ').toUpperCase()}.`,
+      'success'
+    );
 
-      if (fbUser) {
-        try {
-          await updateDoc(doc(db, 'orders', orderId), {
-            orderStatus: newStatus,
-            statusHistory: (updatedOrder as Order).statusHistory
-          });
-        } catch (e) {
-          handleFirestoreError(e, OperationType.UPDATE, `orders/${orderId}`);
-        }
+    if (fbUser && fbUser.emailVerified) {
+      try {
+        await updateDoc(doc(db, 'orders', orderId), {
+          orderStatus: newStatus,
+          paymentStatus: nextPaymentStatus,
+          statusHistory: updatedStatusHistory
+        });
+      } catch (e) {
+        console.warn('Firestore order update skipped:', e);
       }
     }
   };
@@ -750,46 +835,78 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const cancelOrder = async (orderId: string, reason: string) => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
+    if (order.orderStatus === 'cancelled' || order.orderStatus === 'returned' || order.orderStatus === 'refunded') {
+      addToast('Already Closed', `Order ${order.orderNumber} is already ${order.orderStatus}.`, 'info');
+      return;
+    }
 
-    setProducts((prevProducts) => {
-      const updatedProducts = [...prevProducts];
-      order.items.forEach((item) => {
-        const prodIndex = updatedProducts.findIndex((p) => p.id === item.productId);
-        if (prodIndex > -1) {
-          const targetProd = { ...updatedProducts[prodIndex] };
-          const varIndex = targetProd.variants.findIndex((v) => v.id === item.variantId);
-          if (varIndex > -1) {
-            const targetVar = { ...targetProd.variants[varIndex] };
-            const prevStock = targetVar.stock;
-            const restoredStock = prevStock + item.quantity;
-            targetVar.stock = restoredStock;
-            targetVar.reservedStock = Math.max(0, (targetVar.reservedStock || 0) - item.quantity);
-            targetProd.variants[varIndex] = targetVar;
-            targetProd.availableQuantity = targetProd.variants.reduce((sum, v) => sum + v.stock, 0);
-            updatedProducts[prodIndex] = targetProd;
-
-            const tx: InventoryTransaction = {
-              id: `tx-cancel-${Date.now()}-${item.variantId}`,
-              productId: item.productId,
-              productName: item.name,
-              variantId: item.variantId,
-              variantSku: item.variantSku,
-              transactionType: 'cancellation',
-              quantityIn: item.quantity,
-              quantityOut: 0,
-              previousQuantity: prevStock,
-              newQuantity: restoredStock,
-              referenceNumber: order.orderNumber,
-              remarks: `Restocked after cancellation: ${reason}`,
-              transactionDate: new Date().toISOString(),
-              userId: currentUser?.email || 'admin'
-            };
-            setTransactions((prevTx) => [tx, ...prevTx]);
-          }
-        }
+    try {
+      await apiRequest(`/api/commerce/orders/${orderId}/cancel`, {
+        method: 'POST',
+        body: { reason }
       });
-      return updatedProducts;
+    } catch (e) {
+      console.warn('Order cancel backend sync skipped:', e);
+    }
+
+    const nowIso = new Date().toISOString();
+    const cancelTransactions: InventoryTransaction[] = [];
+    order.items.forEach((item) => {
+      const prod = products.find((p) => p.id === item.productId);
+      const variant = prod?.variants.find((v) => v.id === item.variantId);
+      const prevStock = variant?.stock ?? 0;
+      const restoredStock = prevStock + item.quantity;
+      cancelTransactions.push({
+        id: `tx-cancel-${Date.now()}-${item.variantId}`,
+        productId: item.productId,
+        productName: item.name,
+        variantId: item.variantId,
+        variantSku: item.variantSku,
+        transactionType: 'cancellation',
+        quantityIn: item.quantity,
+        quantityOut: 0,
+        previousQuantity: prevStock,
+        newQuantity: restoredStock,
+        referenceNumber: order.orderNumber,
+        remarks: `Restocked after cancellation: ${reason}`,
+        transactionDate: nowIso,
+        userId: currentUser?.email || 'admin'
+      });
     });
+
+    setProducts((prevProducts) =>
+      prevProducts.map((prod) => {
+        const matchingItems = order.items.filter((it) => it.productId === prod.id);
+        if (matchingItems.length === 0) return prod;
+        let totalRestored = 0;
+        const updatedVariants = prod.variants.map((v) => {
+          const qtyForVar = matchingItems
+            .filter((it) => it.variantId === v.id)
+            .reduce((sum, it) => sum + it.quantity, 0);
+          if (qtyForVar === 0) return v;
+          totalRestored += qtyForVar;
+          return {
+            ...v,
+            stock: v.stock + qtyForVar
+          };
+        });
+        return {
+          ...prod,
+          variants: updatedVariants,
+          availableQuantity: updatedVariants.reduce((sum, v) => sum + v.stock, 0),
+          ...(prod.isFlashDeal && typeof prod.flashStockLeft === 'number'
+            ? {
+                flashStockLeft: prod.flashStockLeft + totalRestored,
+                flashSoldCount: Math.max(0, (prod.flashSoldCount || 0) - totalRestored)
+              }
+            : {})
+        };
+      })
+    );
+
+    if (cancelTransactions.length > 0) {
+      setTransactions((prevTx) => [...cancelTransactions, ...prevTx]);
+    }
 
     await updateOrderStatus(orderId, 'cancelled', `Cancellation reason: ${reason}`);
     addToast('Order Cancelled', `Order ${order.orderNumber} cancelled and stock restored.`, 'info');
@@ -995,7 +1112,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const grossProfit = Math.max(0, netSales - cogs);
   const operatingExpenses = expenses.reduce((acc, exp) => acc + exp.amount, 0);
-  const gatewayFees = activeOrders.reduce((acc, o) => (o.paymentMethod !== 'cod' ? acc + o.grandTotal * 0.015 : acc), 0);
+  const gatewayFees = activeOrders.reduce(
+    (acc, o) =>
+      o.paymentMethod !== 'cod' && o.paymentMethod !== 'bank_transfer' && o.paymentStatus === 'paid'
+        ? acc + o.grandTotal * 0.015
+        : acc,
+    0
+  );
   const netProfit = grossProfit - operatingExpenses - gatewayFees;
   const profitMarginPercent = netSales > 0 ? (netProfit / netSales) * 100 : 0;
 

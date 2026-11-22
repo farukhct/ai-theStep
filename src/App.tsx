@@ -161,9 +161,13 @@ function StorefrontApp() {
     setIsDetailModalOpen(true);
   };
 
-  const handleInstantBuy = (product: Product, variant: ProductVariant, quantity: number) => {
-    addToCart(product, variant, quantity);
-    setIsCheckoutOpen(true);
+  const handleInstantBuy = (product: Product, variant: ProductVariant, quantity: number): boolean => {
+    const ok = addToCart(product, variant, quantity, undefined, { openDrawer: false });
+    if (ok) {
+      setIsCartOpen(false);
+      setIsCheckoutOpen(true);
+    }
+    return ok;
   };
 
   const handleEditProductFromStorefront = (product: Product) => {

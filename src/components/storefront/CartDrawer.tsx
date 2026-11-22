@@ -6,7 +6,8 @@ import {
   ArrowRight,
   Tag,
   CheckCircle,
-  Ticket
+  Ticket,
+  AlertTriangle
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -27,9 +28,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onCheck
     subtotal,
     discount,
     shippingFee,
+    isFreeShipping,
+    hasAllFreeDeliveryItems,
+    hasStockIssue,
     grandTotal,
     itemCount,
     appliedCoupon,
+    couponEligibilityError,
     applyCouponCode,
     removeCoupon,
     selectedDivision,
@@ -78,10 +83,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onCheck
 
         {/* Free Delivery Progress */}
         <div className="px-5 py-3 bg-[#E6F4FB]/70 border-b border-neutral-200 text-xs">
-          {subtotal >= 2500 ? (
+          {cart.length === 0 ? (
+            <div className="text-neutral-600 font-medium">
+              Free Nationwide Delivery on orders ৳2,500+ or eligible Free Delivery items
+            </div>
+          ) : isFreeShipping ? (
             <div className="flex items-center gap-2 text-[#1b8a3a] font-semibold">
               <CheckCircle className="w-4 h-4 shrink-0" />
-              <span>FREE Nationwide Delivery unlocked!</span>
+              <span>
+                {hasAllFreeDeliveryItems && subtotal < 2500
+                  ? 'FREE Nationwide Delivery applied on eligible item(s)!'
+                  : 'FREE Nationwide Delivery unlocked!'}
+              </span>
             </div>
           ) : (
             <div>
@@ -119,59 +132,74 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onCheck
               </button>
             </div>
           ) : (
-            cart.map((item) => (
-              <div key={item.variantId} className="pt-4 first:pt-0 flex gap-3.5">
-                <div className="w-20 h-20 rounded border border-neutral-200 bg-neutral-100 overflow-hidden shrink-0">
-                  <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
-                </div>
-
-                <div className="flex-1 flex flex-col justify-between min-w-0">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-xs font-semibold text-[#292933] line-clamp-2">{item.productName}</h4>
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.variantId)}
-                        className="text-neutral-400 hover:text-rose-600 p-0.5 cursor-pointer"
-                        title="Remove item"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-neutral-500 mt-0.5">
-                      {item.color} · {item.size}
-                    </p>
+            cart.map((item) => {
+              const outOfStock = item.maxStock <= 0;
+              const exceedsStock = item.maxStock > 0 && item.quantity > item.maxStock;
+              return (
+                <div key={item.variantId} className="pt-4 first:pt-0 flex gap-3.5">
+                  <div className="w-20 h-20 rounded border border-neutral-200 bg-neutral-100 overflow-hidden shrink-0">
+                    <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center border border-neutral-300 rounded overflow-hidden bg-neutral-50">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
-                        className="px-2 py-0.5 text-xs font-bold text-[#292933] hover:bg-neutral-200 cursor-pointer"
-                      >
-                        -
-                      </button>
-                      <span className="px-2.5 py-0.5 text-xs font-bold font-mono-num text-[#292933] bg-white">
-                        {item.quantity}
+                  <div className="flex-1 flex flex-col justify-between min-w-0">
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-xs font-semibold text-[#292933] line-clamp-2">{item.productName}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.variantId)}
+                          className="text-neutral-400 hover:text-rose-600 p-0.5 cursor-pointer"
+                          title="Remove item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        {item.color} · {item.size}
+                        {item.freeDelivery ? ' · Free Delivery' : ''}
+                      </p>
+                      {(outOfStock || exceedsStock) && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 shrink-0" />
+                          <span>
+                            {outOfStock
+                              ? 'Currently sold out — remove to continue'
+                              : `Only ${item.maxStock} unit(s) left in stock`}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center border border-neutral-300 rounded overflow-hidden bg-neutral-50">
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
+                          className="px-2 py-0.5 text-xs font-bold text-[#292933] hover:bg-neutral-200 cursor-pointer"
+                        >
+                          -
+                        </button>
+                        <span className="px-2.5 py-0.5 text-xs font-bold font-mono-num text-[#292933] bg-white">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
+                          disabled={item.quantity >= item.maxStock}
+                          className="px-2 py-0.5 text-xs font-bold text-[#292933] hover:bg-neutral-200 disabled:opacity-30 cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <span className="text-xs font-bold font-mono-num text-[#ff4300]">
+                        ৳{(item.discountedPrice * item.quantity).toLocaleString()}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
-                        disabled={item.quantity >= item.maxStock}
-                        className="px-2 py-0.5 text-xs font-bold text-[#292933] hover:bg-neutral-200 disabled:opacity-30 cursor-pointer"
-                      >
-                        +
-                      </button>
                     </div>
-
-                    <span className="text-xs font-bold font-mono-num text-[#ff4300]">
-                      ৳{(item.discountedPrice * item.quantity).toLocaleString()}
-                    </span>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -196,24 +224,31 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onCheck
             {/* Voucher Input & Quick Collected Chips */}
             <div className="space-y-2">
               {appliedCoupon ? (
-                <div className="flex items-center justify-between p-2 rounded bg-[#E6F4FB] border border-[#008ED2]/40 text-xs">
-                  <div className="flex items-center gap-1.5 text-[#008ED2]">
-                    <Tag className="w-3.5 h-3.5" />
-                    <span className="font-mono font-bold">{appliedCoupon.code}</span>
-                    <span>
-                      ({appliedCoupon.discountType === 'percentage'
-                        ? `${appliedCoupon.discountValue}%`
-                        : `৳${appliedCoupon.discountValue}`}{' '}
-                      off)
-                    </span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between p-2 rounded bg-[#E6F4FB] border border-[#008ED2]/40 text-xs">
+                    <div className="flex items-center gap-1.5 text-[#008ED2]">
+                      <Tag className="w-3.5 h-3.5" />
+                      <span className="font-mono font-bold">{appliedCoupon.code}</span>
+                      <span>
+                        ({appliedCoupon.discountType === 'percentage'
+                          ? `${appliedCoupon.discountValue}%`
+                          : `৳${appliedCoupon.discountValue}`}{' '}
+                        off)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeCoupon}
+                      className="text-rose-600 font-bold text-[11px] hover:underline cursor-pointer"
+                    >
+                      Remove
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={removeCoupon}
-                    className="text-rose-600 font-bold text-[11px] hover:underline cursor-pointer"
-                  >
-                    Remove
-                  </button>
+                  {couponEligibilityError && (
+                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5 font-medium">
+                      {couponEligibilityError}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <>
@@ -277,13 +312,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onCheck
 
             <button
               type="button"
+              disabled={cart.length === 0 || hasStockIssue}
               onClick={() => {
-                onCheckout();
                 onClose();
+                onCheckout();
               }}
-              className="w-full py-3 px-4 bg-[#ff4300] hover:bg-[#d93800] text-white font-bold rounded-[5px] text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              className="w-full py-3 px-4 bg-[#ff4300] hover:bg-[#d93800] disabled:bg-neutral-300 disabled:cursor-not-allowed text-white font-bold rounded-[5px] text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors"
             >
-              <span>{t('checkout')}</span>
+              <span>{hasStockIssue ? 'Adjust Out-of-Stock Item(s)' : t('checkout')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

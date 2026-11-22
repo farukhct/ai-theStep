@@ -34,29 +34,51 @@ const STATUS_RANK: Record<OrderStatus, number> = {
 
 export const TrackOrderModal: React.FC<TrackOrderModalProps> = ({ isOpen, onClose, onPrintInvoice }) => {
   const { orders } = useStore();
-  const [query, setQuery] = useState('SD-26-8891');
+  const [query, setQuery] = useState(() => orders[0]?.orderNumber || 'SD-26-8891');
   const [searchedOrder, setSearchedOrder] = useState<Order | null>(() => orders[0] || null);
   const [notFound, setNotFound] = useState(false);
 
+  React.useEffect(() => {
+    if (isOpen && orders[0]) {
+      setSearchedOrder((prev) => (prev ? orders.find((o) => o.id === prev.id) || orders[0] : orders[0]));
+    }
+  }, [isOpen, orders]);
+
   if (!isOpen) return null;
 
-  const handleTrackSearch = (e: React.FormEvent) => {
+  const handleTrackSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = query.trim().toLowerCase();
     if (!clean) return;
+    const digits = clean.replace(/\D/g, '');
     const match = orders.find(
       (o) =>
         o.orderNumber.toLowerCase() === clean ||
         (o.trackingNumber || '').toLowerCase() === clean ||
-        o.contactNumber.replace(/\D/g, '').endsWith(clean.replace(/\D/g, ''))
+        (digits.length >= 6 && o.contactNumber.replace(/\D/g, '').endsWith(digits))
     );
     if (match) {
       setSearchedOrder(match);
       setNotFound(false);
-    } else {
-      setSearchedOrder(null);
-      setNotFound(true);
+      return;
     }
+
+    try {
+      const res = await fetch(`/api/commerce/orders/track/${encodeURIComponent(query.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.order) {
+          setSearchedOrder(data.order);
+          setNotFound(false);
+          return;
+        }
+      }
+    } catch {
+      /* ignore network fallback */
+    }
+
+    setSearchedOrder(null);
+    setNotFound(true);
   };
 
   const activeRank = searchedOrder ? STATUS_RANK[searchedOrder.orderStatus] : 0;

@@ -121,8 +121,15 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
   const handleCheckoutAcceptedBid = (productId: string, acceptedPrice: number, qty: number) => {
     const prod = products.find((p) => p.id === productId);
-    if (!prod || !prod.variants[0]) return;
-    const ok = addToCart(prod, prod.variants[0], qty, acceptedPrice);
+    if (!prod || prod.variants.length === 0) {
+      addToast('Product Unavailable', 'This item is no longer available in the catalog.', 'warning');
+      return;
+    }
+    const inStockVariant =
+      prod.variants.find((v) => v.stock - (v.reservedStock || 0) >= qty) ||
+      prod.variants.find((v) => v.stock - (v.reservedStock || 0) > 0) ||
+      prod.variants[0];
+    const ok = addToCart(prod, inStockVariant, qty, acceptedPrice, { openDrawer: false });
     if (ok) {
       onClose();
       onOpenCheckout();
@@ -366,8 +373,9 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            if (prod.variants[0]) {
-                              addToCart(prod, prod.variants[0], 1);
+                            const availVar =
+                              prod.variants.find((v) => v.stock - (v.reservedStock || 0) > 0) || prod.variants[0];
+                            if (availVar && addToCart(prod, availVar, 1)) {
                               onClose();
                             }
                           }}

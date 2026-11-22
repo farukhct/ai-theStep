@@ -2,20 +2,24 @@ import express, { type Express } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { SecurityStore } from './data/securityStore.ts';
+import { CommerceStore } from './data/commerceStore.ts';
 import { createAuthRoutes } from './routes/authRoutes.ts';
 import { createAdminAuthRoutes } from './routes/adminAuthRoutes.ts';
 import { createAdminUsersRoutes } from './routes/adminUsersRoutes.ts';
 import { createAdminRolesRoutes } from './routes/adminRolesRoutes.ts';
 import { createAdminSecurityRoutes } from './routes/adminSecurityRoutes.ts';
+import { createCommerceRoutes } from './routes/commerceRoutes.ts';
 
 export interface CreateAppOptions {
   store?: SecurityStore;
+  commerceStore?: CommerceStore;
   exposeDebugTokens?: boolean;
   verifyGoogleIdToken?: (token: string) => Promise<{ email?: string; email_verified?: boolean; name?: string; picture?: string }>;
 }
 
-export function createApp(options: CreateAppOptions = {}): { app: Express; store: SecurityStore } {
+export function createApp(options: CreateAppOptions = {}): { app: Express; store: SecurityStore; commerceStore: CommerceStore } {
   const store = options.store || new SecurityStore();
+  const commerceStore = options.commerceStore || new CommerceStore();
   const app = express();
 
   app.set('trust proxy', 1);
@@ -77,7 +81,14 @@ export function createApp(options: CreateAppOptions = {}): { app: Express; store
         '/api/admin/security/settings': { get: { summary: 'View security policies' }, put: { summary: 'Update security policies (SuperAdmin)' } },
         '/api/admin/security/events': { get: { summary: 'View security anomaly events' } },
         '/api/admin/audit-logs': { get: { summary: 'Query or export append-only audit logs' } },
-        '/api/admin/sessions': { get: { summary: 'Monitor all active platform sessions' } }
+        '/api/admin/sessions': { get: { summary: 'Monitor all active platform sessions' } },
+        '/api/commerce/coupons/validate': { post: { summary: 'Validate voucher code against cart subtotal' } },
+        '/api/commerce/payments/initiate': { post: { summary: 'Initiate EPS payment session' } },
+        '/api/commerce/payments/authorize': { post: { summary: 'Authorize EPS online payment channel' } },
+        '/api/commerce/payments/cancel': { post: { summary: 'Cancel active EPS payment session' } },
+        '/api/commerce/orders': { post: { summary: 'Place idempotent order with verified payment or COD' } },
+        '/api/commerce/orders/mine': { get: { summary: 'Fetch authenticated customer orders' } },
+        '/api/commerce/orders/track/:query': { get: { summary: 'Track shipment by order ID, tracking ID, or phone' } }
       }
     });
   });
@@ -95,6 +106,7 @@ export function createApp(options: CreateAppOptions = {}): { app: Express; store
   app.use('/api/admin/users', createAdminUsersRoutes(store, { exposeDebugTokens: isDevExpose }));
   app.use('/api/admin', createAdminRolesRoutes(store));
   app.use('/api/admin', createAdminSecurityRoutes(store));
+  app.use('/api/commerce', createCommerceRoutes(store, commerceStore, { exposeDebugTokens: isDevExpose }));
 
-  return { app, store };
+  return { app, store, commerceStore };
 }

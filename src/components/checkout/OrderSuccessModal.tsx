@@ -28,8 +28,20 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
         {/* Heading */}
         <div className="space-y-1.5">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-            {order.paymentStatus === 'paid' ? 'PAYMENT AUTHORIZED (EPS)' : 'ORDER CONFIRMED'}
+          <span
+            className={`text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full border ${
+              order.paymentStatus === 'paid'
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                : order.paymentMethod === 'bank_transfer'
+                ? 'text-amber-700 bg-amber-50 border-amber-200'
+                : 'text-sky-700 bg-sky-50 border-sky-200'
+            }`}
+          >
+            {order.paymentStatus === 'paid'
+              ? 'PAYMENT AUTHORIZED (EPS)'
+              : order.paymentMethod === 'bank_transfer'
+              ? 'PENDING BANK VERIFICATION'
+              : 'ORDER CONFIRMED (COD)'}
           </span>
           <h3 className="text-2xl font-black text-neutral-950 font-serif-heading">
             Order Placed Successfully!

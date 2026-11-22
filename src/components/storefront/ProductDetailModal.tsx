@@ -24,7 +24,7 @@ interface ProductDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenSizeGuide: () => void;
-  onInstantBuy: (product: Product, variant: ProductVariant, quantity: number) => void;
+  onInstantBuy: (product: Product, variant: ProductVariant, quantity: number) => boolean;
   onEditProduct?: (product: Product) => void;
   onOpenBid?: (product: Product) => void;
 }
@@ -293,7 +293,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       <button
                         key={v.id}
                         type="button"
-                        onClick={() => setSelectedVariant(v)}
+                        onClick={() => {
+                          setSelectedVariant(v);
+                          const nextAvail = Math.max(1, v.stock - (v.reservedStock || 0));
+                          setQuantity((q) => Math.min(q, nextAvail));
+                        }}
                         className={`px-3 py-1.5 rounded-[4px] border text-xs flex items-center gap-2 cursor-pointer transition-colors ${
                           isSelected
                             ? 'border-[#ff4300] bg-[#ff4300]/10 text-[#ff4300] font-semibold'
@@ -341,8 +345,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     type="button"
                     disabled={available <= 0}
                     onClick={() => {
-                      onInstantBuy(product, selectedVariant, quantity);
-                      onClose();
+                      const ok = onInstantBuy(product, selectedVariant, quantity);
+                      if (ok) onClose();
                     }}
                     className="py-3 px-4 rounded-[5px] bg-[#ff4300] hover:bg-[#d93800] disabled:bg-neutral-300 text-white text-xs font-bold cursor-pointer transition-colors"
                   >

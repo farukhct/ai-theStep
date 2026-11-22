@@ -38,6 +38,7 @@ import {
   EPS_PLATFORM_INFO,
   getPaymentChannelName
 } from '../../config/epsPaymentOptions';
+import { THESTEPS_CONTACT } from '../../config/constants';
 import { useNotification } from '../../context/NotificationContext';
 
 /* ============================================================================
@@ -488,13 +489,13 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                   From Merchant
                 </span>
                 <p className="font-bold text-sm text-gray-900 dark:text-white">
-                  TheSteps Bangladesh Ltd.
+                  {THESTEPS_CONTACT.brand} Bangladesh Ltd.
                 </p>
                 <p className="text-gray-500 dark:text-gray-400">
-                  House 14, Road 11, Banani, Dhaka 1213
+                  {THESTEPS_CONTACT.address}
                 </p>
                 <p className="text-gray-500 dark:text-gray-400 font-mono-num">
-                  support@thesteps.com.bd
+                  {THESTEPS_CONTACT.phone} · {THESTEPS_CONTACT.email}
                 </p>
               </div>
 
@@ -566,12 +567,12 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                 <div className="flex justify-between text-gray-500 dark:text-gray-400">
                   <span>Shipping Fee</span>
                   <span className="font-mono-num font-semibold text-gray-900 dark:text-white">
-                    ৳{activeOrder.shippingFee.toLocaleString()}
+                    {activeOrder.shippingFee === 0 ? 'FREE' : `৳${activeOrder.shippingFee.toLocaleString()}`}
                   </span>
                 </div>
                 {activeOrder.discount > 0 && (
                   <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                    <span>Discount</span>
+                    <span>Discount{activeOrder.couponCode ? ` (${activeOrder.couponCode})` : ''}</span>
                     <span className="font-mono-num font-semibold">
                       -৳{activeOrder.discount.toLocaleString()}
                     </span>
