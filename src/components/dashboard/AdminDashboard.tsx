@@ -105,6 +105,7 @@ import {
 import { UserManagementView } from './security/UserManagementView';
 import { RolePermissionView } from './security/RolePermissionView';
 import { SecurityOperationsView } from './security/SecurityOperationsView';
+import { DatabaseBackupRestoreView } from './DatabaseBackupRestoreView';
 import { PersonalSecurityPanel } from '../auth/PersonalSecurityPanel';
 import { Product, Order, OrderStatus } from '../../types';
 import { getPaymentChannelName } from '../../config/epsPaymentOptions';
@@ -156,7 +157,8 @@ export type AdminTab =
   | 'sessions'
   | 'login-history'
   | 'security-events'
-  | 'security-settings';
+  | 'security-settings'
+  | 'database-backup';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -565,7 +567,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     sessions: 'Active Sessions & Devices',
     'login-history': 'Login History & Risk Monitor',
     'security-events': 'Security Events & Alerts',
-    'security-settings': 'Security Settings & Policies'
+    'security-settings': 'Security Settings & Policies',
+    'database-backup': 'Database Backup & Restore'
   };
 
   const quickPageMatches = searchQueryTrimmed
@@ -1442,6 +1445,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <span className="flex items-center gap-3 min-w-0">
                       <ShieldCheck className="w-4 h-4 shrink-0" />
                       {!compact && <span className="truncate">Audit Logs</span>}
+                    </span>
+                  </button>
+                )}
+
+                {hasAnyPermission(['database.backup', 'database.restore']) && (
+                  <button
+                    type="button"
+                    onClick={() => selectTab('database-backup')}
+                    className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      activeTab === 'database-backup'
+                        ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                    }`}
+                    title="Backup & Restore"
+                  >
+                    <span className="flex items-center gap-3 min-w-0">
+                      <Database className="w-4 h-4 shrink-0" />
+                      {!compact && <span className="truncate">Backup &amp; Restore</span>}
                     </span>
                   </button>
                 )}
@@ -3345,6 +3366,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                   </div>
                 </div>
+              )}
+
+              {/* VIEW 9: DATABASE BACKUP & RESTORE */}
+              {activeTab === 'database-backup' && hasAnyPermission(['database.backup', 'database.restore']) && (
+                <DatabaseBackupRestoreView />
               )}
             </div>
           </main>

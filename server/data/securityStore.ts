@@ -1518,4 +1518,189 @@ export class SecurityStore {
   public listUserNotifications(userId: string): UserNotificationEntity[] {
     return this.data.userNotifications.filter((n) => n.userId === userId);
   }
+
+  public exportSnapshot(options: { sanitizeSensitive?: boolean } = {}): SecurityDatabaseSchema {
+    const clone = structuredClone(this.data);
+    if (options.sanitizeSensitive) {
+      clone.users = clone.users.map((u) => ({
+        ...u,
+        passwordHash: null
+      }));
+      clone.userSessions = [];
+      clone.refreshTokens = [];
+      clone.loginAttempts = [];
+      clone.passwordResetTokens = [];
+      clone.passwordHistory = [];
+      clone.verificationTokens = [];
+      clone.mfaRecoveryCodes = [];
+      clone.adminInvitations = clone.adminInvitations.map((inv) => ({
+        ...inv,
+        tokenHash: '[REDACTED]'
+      }));
+      clone.userMfa = clone.userMfa.map((mfa) => ({
+        ...mfa,
+        secretEncrypted: '[REDACTED]'
+      }));
+    }
+    return clone;
+  }
+
+  public restoreSnapshot(
+    snapshot: Partial<SecurityDatabaseSchema>,
+    options: { actorUserId: string; activeSessionId?: string }
+  ): {
+    users: number;
+    roles: number;
+    permissions: number;
+    rolePermissions: number;
+    securityEvents: number;
+    auditLogs: number;
+  } {
+    const prevUsersById = new Map(this.data.users.map((u) => [u.id, u]));
+    const prevMfaByUserId = new Map(this.data.userMfa.map((m) => [m.userId, m]));
+    const prevAuditLogs = structuredClone(this.data.auditLogs);
+    const actingUser = prevUsersById.get(options.actorUserId);
+    const actingUserRoles = this.data.userRoles.filter((ur) => ur.userId === options.actorUserId);
+    const actingSession = options.activeSessionId
+      ? this.data.userSessions.find((s) => s.id === options.activeSessionId)
+      : undefined;
+    const actingRefreshTokens = options.activeSessionId
+      ? this.data.refreshTokens.filter((rt) => rt.sessionId === options.activeSessionId && !rt.revokedAt)
+      : [];
+
+    if (Array.isArray(snapshot.users)) {
+      this.data.users = structuredClone(snapshot.users).map((u) => {
+        const prev = prevUsersById.get(u.id);
+        return {
+          ...u,
+          // Preserve existing passwordHash if restoring from a sanitized download
+          passwordHash: u.passwordHash === null && prev?.passwordHash ? prev.passwordHash : u.passwordHash
+        };
+      });
+    }
+
+    if (Array.isArray(snapshot.roles)) {
+      this.data.roles = structuredClone(snapshot.roles);
+    }
+    if (Array.isArray(snapshot.permissions)) {
+      this.data.permissions = structuredClone(snapshot.permissions);
+    }
+    if (Array.isArray(snapshot.userRoles)) {
+      this.data.userRoles = structuredClone(snapshot.userRoles);
+    }
+    if (Array.isArray(snapshot.rolePermissions)) {
+      this.data.rolePermissions = structuredClone(snapshot.rolePermissions);
+    }
+    if (Array.isArray(snapshot.userPermissionOverrides)) {
+      this.data.userPermissionOverrides = structuredClone(snapshot.userPermissionOverrides);
+    }
+    if (Array.isArray(snapshot.userSessions)) {
+      this.data.userSessions = structuredClone(snapshot.userSessions);
+    }
+    if (Array.isArray(snapshot.refreshTokens)) {
+      this.data.refreshTokens = structuredClone(snapshot.refreshTokens);
+    }
+    if (Array.isArray(snapshot.loginAttempts)) {
+      this.data.loginAttempts = structuredClone(snapshot.loginAttempts);
+    }
+    if (Array.isArray(snapshot.loginHistory)) {
+      this.data.loginHistory = structuredClone(snapshot.loginHistory);
+    }
+    if (Array.isArray(snapshot.passwordResetTokens)) {
+      this.data.passwordResetTokens = structuredClone(snapshot.passwordResetTokens);
+    }
+    if (Array.isArray(snapshot.passwordHistory)) {
+      this.data.passwordHistory = structuredClone(snapshot.passwordHistory);
+    }
+    if (Array.isArray(snapshot.verificationTokens)) {
+      this.data.verificationTokens = structuredClone(snapshot.verificationTokens);
+    }
+    if (Array.isArray(snapshot.adminInvitations)) {
+      this.data.adminInvitations = structuredClone(snapshot.adminInvitations);
+    }
+    if (Array.isArray(snapshot.userMfa)) {
+      this.data.userMfa = structuredClone(snapshot.userMfa).map((mfa) => {
+        const prev = prevMfaByUserId.get(mfa.userId);
+        return {
+          ...mfa,
+          secretEncrypted:
+            mfa.secretEncrypted === '[REDACTED]' && prev?.secretEncrypted
+              ? prev.secretEncrypted
+              : mfa.secretEncrypted
+        };
+      });
+    }
+    if (Array.isArray(snapshot.mfaRecoveryCodes)) {
+      this.data.mfaRecoveryCodes = structuredClone(snapshot.mfaRecoveryCodes);
+    }
+    if (snapshot.securitySettings && typeof snapshot.securitySettings === 'object') {
+      this.data.securitySettings = {
+        ...this.data.securitySettings,
+        ...structuredClone(snapshot.securitySettings)
+      };
+    }
+    if (Array.isArray(snapshot.securityEvents)) {
+      this.data.securityEvents = structuredClone(snapshot.securityEvents);
+    }
+    if (Array.isArray(snapshot.userNotifications)) {
+      this.data.userNotifications = structuredClone(snapshot.userNotifications);
+    }
+
+    // Preserve append-only audit trail by merging existing + snapshot logs without duplicates
+    if (Array.isArray(snapshot.auditLogs)) {
+      const mergedMap = new Map<string, AuditLogEntity>();
+      for (const item of prevAuditLogs) mergedMap.set(item.id, item);
+      for (const item of snapshot.auditLogs) {
+        if (item && item.id && !mergedMap.has(item.id)) {
+          mergedMap.set(item.id, structuredClone(item));
+        }
+      }
+      this.data.auditLogs = Array.from(mergedMap.values())
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 5000);
+    }
+
+    // Self-lockout safeguard: ensure acting admin and active session survive restore
+    if (actingUser) {
+      const idx = this.data.users.findIndex((u) => u.id === actingUser.id);
+      if (idx === -1) {
+        this.data.users.push(structuredClone(actingUser));
+        for (const ur of actingUserRoles) {
+          if (!this.data.userRoles.some((x) => x.userId === ur.userId && x.roleId === ur.roleId)) {
+            this.data.userRoles.push(structuredClone(ur));
+          }
+        }
+      } else if (this.data.users[idx].status !== 'active') {
+        this.data.users[idx].status = 'active';
+      }
+    }
+
+    if (actingSession) {
+      const existingSess = this.data.userSessions.find((s) => s.id === actingSession.id);
+      if (!existingSess) {
+        this.data.userSessions.push(structuredClone(actingSession));
+      } else {
+        existingSess.revokedAt = null;
+        existingSess.revokeReason = null;
+      }
+    }
+
+    for (const rt of actingRefreshTokens) {
+      if (!this.data.refreshTokens.some((x) => x.id === rt.id)) {
+        this.data.refreshTokens.push(structuredClone(rt));
+      }
+    }
+
+    this.ensureSeedIntegrity();
+    this.save();
+
+    return {
+      users: this.data.users.length,
+      roles: this.data.roles.length,
+      permissions: this.data.permissions.length,
+      rolePermissions: this.data.rolePermissions.length,
+      securityEvents: this.data.securityEvents.length,
+      auditLogs: this.data.auditLogs.length
+    };
+  }
 }

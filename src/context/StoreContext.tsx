@@ -143,6 +143,38 @@ interface StoreContextType {
   exportFinancialCsv: () => string;
   runManualBackup: () => void;
   lastBackupDate: string | null;
+  getStorefrontSnapshotPayload: () => {
+    products: Product[];
+    orders: Order[];
+    coupons: Coupon[];
+    transactions: InventoryTransaction[];
+    suppliers: Supplier[];
+    purchaseOrders: PurchaseOrder[];
+    expenses: Expense[];
+    bids: ProductBid[];
+    auditLogs: AuditLog[];
+  };
+  restoreStoreSnapshot: (snapshot: {
+    products?: Product[];
+    orders?: Order[];
+    coupons?: Coupon[];
+    transactions?: InventoryTransaction[];
+    suppliers?: Supplier[];
+    purchaseOrders?: PurchaseOrder[];
+    expenses?: Expense[];
+    bids?: ProductBid[];
+    auditLogs?: AuditLog[];
+  }) => Promise<{ firestoreSynced: number }>;
+  pullFirestoreBackup: () => Promise<{
+    products: Product[];
+    orders: Order[];
+    coupons: Coupon[];
+    bids: ProductBid[];
+    transactions: InventoryTransaction[];
+    suppliers: Supplier[];
+    expenses: Expense[];
+  }>;
+  syncFirestoreCollections: () => Promise<{ docCount: number }>;
   gdprExportUserData: (email: string) => any;
   gdprEraseUserData: (email: string) => Promise<void>;
 }
@@ -1251,6 +1283,183 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addToast('Backup Created', 'Database snapshot exported successfully.', 'success');
   };
 
+  const getStorefrontSnapshotPayload = () => ({
+    products,
+    orders,
+    coupons,
+    transactions,
+    suppliers,
+    purchaseOrders,
+    expenses,
+    bids,
+    auditLogs
+  });
+
+  const syncFirestoreCollections = async (): Promise<{ docCount: number }> => {
+    assertManagerAccess('sync database to Firestore');
+    if (!fbUser) {
+      throw new Error('Firebase Google administrator sign-in is required for direct Firestore cloud sync.');
+    }
+
+    let docCount = 0;
+    const syncList = async (colName: string, items: Array<{ id: string }>) => {
+      for (const item of items) {
+        if (!item?.id) continue;
+        try {
+          await setDoc(doc(db, colName, item.id), item);
+          docCount += 1;
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, `${colName}/${item.id}`);
+        }
+      }
+    };
+
+    await syncList('products', products);
+    await syncList('orders', orders);
+    await syncList('coupons', coupons);
+    await syncList('bids', bids);
+    await syncList('inventory_transactions', transactions);
+    await syncList('suppliers', suppliers);
+    await syncList('expenses', expenses);
+
+    addAuditLog('FIRESTORE_SYNC', 'Database', 'cloud-firestore', `Synchronized ${docCount} documents to Cloud Firestore.`);
+    return { docCount };
+  };
+
+  const pullFirestoreBackup = async () => {
+    assertManagerAccess('export Firestore collections');
+    if (!fbUser) {
+      throw new Error('Firebase Google administrator sign-in is required to read restricted Firestore collections.');
+    }
+
+    const readCol = async <T,>(colName: string): Promise<T[]> => {
+      try {
+        const snap = await getDocs(collection(db, colName));
+        return snap.docs.map((d) => d.data() as T);
+      } catch (err) {
+        return handleFirestoreError(err, OperationType.LIST, colName);
+      }
+    };
+
+    const [
+      cloudProducts,
+      cloudOrders,
+      cloudCoupons,
+      cloudBids,
+      cloudTransactions,
+      cloudSuppliers,
+      cloudExpenses
+    ] = await Promise.all([
+      readCol<Product>('products'),
+      readCol<Order>('orders'),
+      readCol<Coupon>('coupons'),
+      readCol<ProductBid>('bids'),
+      readCol<InventoryTransaction>('inventory_transactions'),
+      readCol<Supplier>('suppliers'),
+      readCol<Expense>('expenses')
+    ]);
+
+    return {
+      products: cloudProducts,
+      orders: cloudOrders,
+      coupons: cloudCoupons,
+      bids: cloudBids,
+      transactions: cloudTransactions,
+      suppliers: cloudSuppliers,
+      expenses: cloudExpenses
+    };
+  };
+
+  const restoreStoreSnapshot = async (snapshot: {
+    products?: Product[];
+    orders?: Order[];
+    coupons?: Coupon[];
+    transactions?: InventoryTransaction[];
+    suppliers?: Supplier[];
+    purchaseOrders?: PurchaseOrder[];
+    expenses?: Expense[];
+    bids?: ProductBid[];
+    auditLogs?: AuditLog[];
+  }): Promise<{ firestoreSynced: number }> => {
+    assertManagerAccess('restore database snapshot');
+
+    if (Array.isArray(snapshot.products)) {
+      setProducts(snapshot.products);
+      localStorage.setItem('sd_products', JSON.stringify(snapshot.products));
+    }
+    if (Array.isArray(snapshot.orders)) {
+      setOrders(snapshot.orders);
+      localStorage.setItem('sd_orders', JSON.stringify(snapshot.orders));
+    }
+    if (Array.isArray(snapshot.coupons)) {
+      setCoupons(snapshot.coupons);
+      localStorage.setItem('sd_coupons', JSON.stringify(snapshot.coupons));
+    }
+    if (Array.isArray(snapshot.transactions)) {
+      setTransactions(snapshot.transactions);
+      localStorage.setItem('sd_transactions', JSON.stringify(snapshot.transactions));
+    }
+    if (Array.isArray(snapshot.suppliers)) {
+      setSuppliers(snapshot.suppliers);
+      localStorage.setItem('sd_suppliers', JSON.stringify(snapshot.suppliers));
+    }
+    if (Array.isArray(snapshot.purchaseOrders)) {
+      setPurchaseOrders(snapshot.purchaseOrders);
+      localStorage.setItem('sd_pos', JSON.stringify(snapshot.purchaseOrders));
+    }
+    if (Array.isArray(snapshot.expenses)) {
+      setExpenses(snapshot.expenses);
+      localStorage.setItem('sd_expenses', JSON.stringify(snapshot.expenses));
+    }
+    if (Array.isArray(snapshot.bids)) {
+      setBids(snapshot.bids);
+      localStorage.setItem('sd_bids', JSON.stringify(snapshot.bids));
+    }
+    if (Array.isArray(snapshot.auditLogs)) {
+      setAuditLogs((prev) => {
+        const merged = new Map<string, AuditLog>();
+        for (const item of prev) merged.set(item.id, item);
+        for (const item of snapshot.auditLogs || []) {
+          if (item?.id && !merged.has(item.id)) merged.set(item.id, item);
+        }
+        return Array.from(merged.values()).sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+      });
+    }
+
+    let firestoreSynced = 0;
+    if (fbUser && fbUser.emailVerified && isManager) {
+      const pushCol = async (colName: string, rows?: Array<{ id: string }>) => {
+        if (!Array.isArray(rows)) return;
+        for (const row of rows) {
+          if (!row?.id) continue;
+          try {
+            await setDoc(doc(db, colName, row.id), row);
+            firestoreSynced += 1;
+          } catch (err) {
+            handleFirestoreError(err, OperationType.WRITE, `${colName}/${row.id}`);
+          }
+        }
+      };
+
+      await pushCol('products', snapshot.products);
+      await pushCol('coupons', snapshot.coupons);
+      await pushCol('orders', snapshot.orders);
+      await pushCol('suppliers', snapshot.suppliers);
+      await pushCol('expenses', snapshot.expenses);
+    }
+
+    addAuditLog(
+      'DATABASE_RESTORED',
+      'Database',
+      'storefront-erp',
+      `Restored storefront & ERP snapshot collections${firestoreSynced > 0 ? ` (${firestoreSynced} Firestore docs synced)` : ''}.`
+    );
+
+    return { firestoreSynced };
+  };
+
   const gdprExportUserData = (email: string) => {
     const userOrders = orders.filter((o) => o.email.toLowerCase() === email.toLowerCase());
     return {
@@ -1324,6 +1533,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         exportFinancialCsv,
         runManualBackup,
         lastBackupDate,
+        getStorefrontSnapshotPayload,
+        restoreStoreSnapshot,
+        pullFirestoreBackup,
+        syncFirestoreCollections,
         gdprExportUserData,
         gdprEraseUserData
       }}

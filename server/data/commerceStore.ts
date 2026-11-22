@@ -896,4 +896,41 @@ export class CommerceStore {
     this.save();
     return ord;
   }
+
+  public exportSnapshot(): PersistedCommerceData {
+    return {
+      products: structuredClone(this.products),
+      coupons: structuredClone(this.coupons),
+      orders: structuredClone(this.orders),
+      paymentSessions: structuredClone(this.paymentSessions)
+    };
+  }
+
+  public restoreSnapshot(snapshot: {
+    products?: Product[];
+    coupons?: Coupon[];
+    orders?: Order[];
+    paymentSessions?: PaymentSessionRecord[];
+  }): { products: number; coupons: number; orders: number; paymentSessions: number } {
+    if (Array.isArray(snapshot.products)) {
+      this.products = structuredClone(snapshot.products);
+    }
+    if (Array.isArray(snapshot.coupons)) {
+      this.coupons = structuredClone(snapshot.coupons);
+    }
+    if (Array.isArray(snapshot.orders)) {
+      this.orders = structuredClone(snapshot.orders);
+    }
+    if (Array.isArray(snapshot.paymentSessions)) {
+      this.paymentSessions = structuredClone(snapshot.paymentSessions);
+    }
+    this.idempotencyMap.clear();
+    this.save();
+    return {
+      products: this.products.length,
+      coupons: this.coupons.length,
+      orders: this.orders.length,
+      paymentSessions: this.paymentSessions.length
+    };
+  }
 }

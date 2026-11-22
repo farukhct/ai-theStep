@@ -585,6 +585,7 @@ const TAB_TO_ROUTE: Partial<Record<AdminTab, string>> = {
   'security-events': '/admin/security',
   'security-settings': '/admin/security',
   audit: '/admin/audit-logs',
+  'database-backup': '/admin/backup',
   profile: '/admin/profile'
 };
 
@@ -711,6 +712,14 @@ export default function App() {
                   element={
                     <RequireAdmin requiredPermission="security.audit_logs.view">
                       <AdminDashboardRoute initialTab="audit" />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/backup"
+                  element={
+                    <RequireAdmin requiredPermission="database.backup">
+                      <AdminDashboardRoute initialTab="database-backup" />
                     </RequireAdmin>
                   }
                 />

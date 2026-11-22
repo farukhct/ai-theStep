@@ -66,7 +66,11 @@ export const SYSTEM_PERMISSIONS: PermissionDefinition[] = [
   { id: 'perm_orders_view', code: 'orders.view', category: 'Store Operations', name: 'View Orders', description: 'View customer orders, bids, and dispatch invoices', isCritical: false },
   { id: 'perm_orders_manage', code: 'orders.manage', category: 'Store Operations', name: 'Manage Orders & Fulfillment', description: 'Advance order statuses, handle bids and coupons', isCritical: false },
   { id: 'perm_finance_view', code: 'finance.view', category: 'Store Operations', name: 'View Finance Reports', description: 'Inspect P&L statements and EPS gateway reconciliation', isCritical: false },
-  { id: 'perm_finance_manage', code: 'finance.manage', category: 'Store Operations', name: 'Manage Finance & Suppliers', description: 'Record expenses, manage suppliers and purchase orders', isCritical: true }
+  { id: 'perm_finance_manage', code: 'finance.manage', category: 'Store Operations', name: 'Manage Finance & Suppliers', description: 'Record expenses, manage suppliers and purchase orders', isCritical: true },
+
+  // Database Backup & Recovery
+  { id: 'perm_database_backup', code: 'database.backup', category: 'Database Governance', name: 'Create & Download Backups', description: 'Create server snapshots and export sanitized database backups', isCritical: true },
+  { id: 'perm_database_restore', code: 'database.restore', category: 'Database Governance', name: 'Restore Database Snapshots', description: 'Restore commerce, ERP, or identity databases from snapshots or JSON files', isCritical: true }
 ];
 
 const ALL_PERMISSION_CODES = SYSTEM_PERMISSIONS.map((p) => p.code);
@@ -116,7 +120,8 @@ export const DEFAULT_ROLES: RoleSeedDefinition[] = [
       'orders.view',
       'orders.manage',
       'finance.view',
-      'finance.manage'
+      'finance.manage',
+      'database.backup'
     ]
   },
   {

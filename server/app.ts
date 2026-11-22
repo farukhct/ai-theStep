@@ -8,11 +8,13 @@ import { createAdminAuthRoutes } from './routes/adminAuthRoutes.ts';
 import { createAdminUsersRoutes } from './routes/adminUsersRoutes.ts';
 import { createAdminRolesRoutes } from './routes/adminRolesRoutes.ts';
 import { createAdminSecurityRoutes } from './routes/adminSecurityRoutes.ts';
+import { createAdminBackupRoutes } from './routes/adminBackupRoutes.ts';
 import { createCommerceRoutes } from './routes/commerceRoutes.ts';
 
 export interface CreateAppOptions {
   store?: SecurityStore;
   commerceStore?: CommerceStore;
+  backupDir?: string | null;
   exposeDebugTokens?: boolean;
   verifyGoogleIdToken?: (token: string) => Promise<{ email?: string; email_verified?: boolean; name?: string; picture?: string }>;
 }
@@ -35,7 +37,7 @@ export function createApp(options: CreateAppOptions = {}): { app: Express; store
   );
 
   app.use(cookieParser());
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '8mb' }));
 
   app.get('/api/health', (_req, res) => {
     res.json({
@@ -82,6 +84,15 @@ export function createApp(options: CreateAppOptions = {}): { app: Express; store
         '/api/admin/security/events': { get: { summary: 'View security anomaly events' } },
         '/api/admin/audit-logs': { get: { summary: 'Query or export append-only audit logs' } },
         '/api/admin/sessions': { get: { summary: 'Monitor all active platform sessions' } },
+        '/api/admin/database/stats': { get: { summary: 'Live server commerce & security collection counts' } },
+        '/api/admin/database/backups': {
+          get: { summary: 'List stored server backup snapshots' },
+          post: { summary: 'Create new full or scoped server database snapshot' }
+        },
+        '/api/admin/database/backups/:id/download': { get: { summary: 'Download sanitized JSON backup snapshot' } },
+        '/api/admin/database/backups/:id/restore': { post: { summary: 'Restore database from server snapshot with pre-restore backup' } },
+        '/api/admin/database/restore-upload': { post: { summary: 'Validate & restore database from uploaded JSON backup file' } },
+        '/api/admin/database/backups/:id': { delete: { summary: 'Delete a server backup snapshot' } },
         '/api/commerce/coupons/validate': { post: { summary: 'Validate voucher code against cart subtotal' } },
         '/api/commerce/payments/initiate': { post: { summary: 'Initiate EPS payment session' } },
         '/api/commerce/payments/authorize': { post: { summary: 'Authorize EPS online payment channel' } },
@@ -106,6 +117,7 @@ export function createApp(options: CreateAppOptions = {}): { app: Express; store
   app.use('/api/admin/users', createAdminUsersRoutes(store, { exposeDebugTokens: isDevExpose }));
   app.use('/api/admin', createAdminRolesRoutes(store));
   app.use('/api/admin', createAdminSecurityRoutes(store));
+  app.use('/api/admin/database', createAdminBackupRoutes(store, commerceStore, { backupDir: options.backupDir }));
   app.use('/api/commerce', createCommerceRoutes(store, commerceStore, { exposeDebugTokens: isDevExpose }));
 
   return { app, store, commerceStore };
