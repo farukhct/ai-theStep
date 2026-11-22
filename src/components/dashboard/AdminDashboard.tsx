@@ -44,7 +44,18 @@ import {
   History,
   ShieldAlert,
   Settings,
-  LogOut
+  LogOut,
+  Megaphone,
+  Truck,
+  MessageSquare,
+  LifeBuoy,
+  Mail,
+  FileSpreadsheet,
+  Table2,
+  PieChart,
+  Blocks,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useAuth } from '../../context/AuthContext';
@@ -66,6 +77,31 @@ import {
   TaskKanbanView,
   UserProfileView
 } from './TailAdminOperationsViews';
+import {
+  MarketingDashboardView,
+  CrmDashboardView,
+  LogisticsDashboardView,
+  TransactionsLedgerView
+} from './TailAdminExtendedDashboards';
+import {
+  SupportChatView,
+  SupportTicketsView,
+  EmailInboxView,
+  FileManagerView
+} from './TailAdminAppsAndSupportViews';
+import {
+  FormsElementsView,
+  FormsLayoutsView,
+  TablesBasicView,
+  DataTablesView,
+  ChartsShowcaseView,
+  UiElementsShowcaseView,
+  SettingsPageView,
+  PricingPageView,
+  FaqPageView,
+  IntegrationsPageView,
+  ApiKeysPageView
+} from './TailAdminFormsTablesPagesViews';
 import { UserManagementView } from './security/UserManagementView';
 import { RolePermissionView } from './security/RolePermissionView';
 import { SecurityOperationsView } from './security/SecurityOperationsView';
@@ -76,12 +112,16 @@ import { getPaymentChannelName } from '../../config/epsPaymentOptions';
 export type AdminTab =
   | 'analytics'
   | 'traffic-analytics'
+  | 'marketing'
+  | 'crm'
+  | 'logistics'
   | 'products'
   | 'add-product'
   | 'inventory'
   | 'orders'
   | 'invoices'
   | 'billing'
+  | 'transactions'
   | 'customers'
   | 'calendar'
   | 'profile'
@@ -89,6 +129,23 @@ export type AdminTab =
   | 'bids'
   | 'suppliers'
   | 'finance'
+  | 'forms-elements'
+  | 'forms-layouts'
+  | 'tables-basic'
+  | 'tables-data'
+  | 'charts-line'
+  | 'charts-bar'
+  | 'charts-pie'
+  | 'ui-elements'
+  | 'support-chat'
+  | 'support-tickets'
+  | 'support-email'
+  | 'page-files'
+  | 'page-settings'
+  | 'page-pricing'
+  | 'page-faq'
+  | 'page-integrations'
+  | 'page-apikeys'
   | 'audit'
   | 'users-all'
   | 'users-admins'
@@ -158,9 +215,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Shell & TailAdmin Navigation State
   const [activeTab, setActiveTab] = useState<AdminTab>('analytics');
   const [isDark, setIsDark] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
-  const [openMenuGroup, setOpenMenuGroup] = useState<'dashboard' | 'ecommerce' | 'tasks' | 'security'>('dashboard');
+  const [openMenuGroup, setOpenMenuGroup] = useState<
+    'dashboard' | 'ecommerce' | 'tasks' | 'forms' | 'tables' | 'pages' | 'charts' | null
+  >('dashboard');
   const [globalSearch, setGlobalSearch] = useState<string>('');
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState<boolean>(false);
   const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState<boolean>(false);
@@ -251,9 +311,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         searchInputRef.current?.focus();
       }
     };
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('fullscreenchange', handleFsChange);
+    };
   }, [isOpen]);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Ignore fullscreen denial in embedded iframes
+    }
+  };
 
   if (!isOpen || !isManager) return null;
 
@@ -441,12 +520,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const tabTitles: Record<AdminTab, string> = {
     analytics: 'eCommerce Overview',
     'traffic-analytics': 'Analytics & Conversion',
+    marketing: 'Marketing Dashboard',
+    crm: 'CRM & Buyer Pipeline',
+    logistics: 'Logistics & Dispatch',
     products: 'Products Catalog',
     'add-product':
       productEditorState.mode === 'edit' ? 'Edit Product' : 'Create TheSteps Product',
     orders: 'Orders Management',
     invoices: 'Invoices & Dispatch',
     billing: 'Billing & EPS Gateway',
+    transactions: 'Transactions Ledger',
     customers: 'Customers Directory',
     calendar: 'Campaign & Restock Calendar',
     profile: 'My Profile & Personal Security',
@@ -455,6 +538,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     bids: 'Customer Bids & Vouchers',
     finance: 'Finance & P&L Statement',
     suppliers: 'Suppliers & Purchase Orders',
+    'forms-elements': 'Form Elements',
+    'forms-layouts': 'Form Layouts',
+    'tables-basic': 'Basic Tables',
+    'tables-data': 'Data Tables',
+    'charts-line': 'Line Chart',
+    'charts-bar': 'Bar Chart',
+    'charts-pie': 'Pie & Donut Chart',
+    'ui-elements': 'UI Elements Library',
+    'support-chat': 'Messages & Support Chat',
+    'support-tickets': 'Support Tickets',
+    'support-email': 'Email Inbox',
+    'page-files': 'File Manager',
+    'page-settings': 'Store Settings',
+    'page-pricing': 'Merchant Pricing Plans',
+    'page-faq': 'Operations FAQs',
+    'page-integrations': 'Integrations Hub',
+    'page-apikeys': 'API Keys & Tokens',
     audit: 'Audit Logs & SOC2 Compliance',
     'users-all': 'User Management Directory',
     'users-admins': 'Administrator Management',
@@ -467,6 +567,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     'security-events': 'Security Events & Alerts',
     'security-settings': 'Security Settings & Policies'
   };
+
+  const quickPageMatches = searchQueryTrimmed
+    ? (Object.entries(tabTitles) as [AdminTab, string][])
+        .filter(([, label]) => label.toLowerCase().includes(searchQueryTrimmed))
+        .slice(0, 4)
+    : [];
 
   // Sidebar Content shared between Desktop Rail & Mobile Drawer
   const renderSidebarContent = (isMobile: boolean) => {
@@ -527,12 +633,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     if (compact) {
                       selectTab('analytics');
                     } else {
-                      setOpenMenuGroup(openMenuGroup === 'dashboard' ? 'ecommerce' : 'dashboard');
-                      selectTab('analytics');
+                      setOpenMenuGroup(openMenuGroup === 'dashboard' ? null : 'dashboard');
                     }
                   }}
                   className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    activeTab === 'analytics' || activeTab === 'traffic-analytics' || activeTab === 'finance'
+                    ['analytics', 'traffic-analytics', 'marketing', 'crm', 'logistics', 'finance'].includes(activeTab)
                       ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
                   }`}
@@ -549,41 +654,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   )}
                 </button>
 
-                {!compact && (openMenuGroup === 'dashboard' || activeTab === 'analytics' || activeTab === 'traffic-analytics' || activeTab === 'finance') && (
+                {!compact && (openMenuGroup === 'dashboard' || ['analytics', 'traffic-analytics', 'marketing', 'crm', 'logistics', 'finance'].includes(activeTab)) && (
                   <div className="pl-9 pr-2 py-1 space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => selectTab('analytics')}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                        activeTab === 'analytics'
-                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
-                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      eCommerce
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectTab('traffic-analytics')}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                        activeTab === 'traffic-analytics'
-                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
-                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      Analytics
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectTab('finance')}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                        activeTab === 'finance'
-                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
-                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      Finance &amp; P&amp;L
-                    </button>
+                    {([
+                      ['analytics', 'eCommerce'],
+                      ['traffic-analytics', 'Analytics'],
+                      ['marketing', 'Marketing'],
+                      ['crm', 'CRM'],
+                      ['logistics', 'Logistics'],
+                      ['finance', 'Finance & P&L']
+                    ] as [AdminTab, string][]).map(([tabId, label]) => (
+                      <button
+                        key={tabId}
+                        type="button"
+                        onClick={() => selectTab(tabId)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === tabId
+                            ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 )}
 
@@ -594,11 +687,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     if (compact) {
                       selectTab('products');
                     } else {
-                      setOpenMenuGroup(openMenuGroup === 'ecommerce' ? 'dashboard' : 'ecommerce');
+                      setOpenMenuGroup(openMenuGroup === 'ecommerce' ? null : 'ecommerce');
                     }
                   }}
                   className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    activeTab === 'products' || activeTab === 'add-product' || activeTab === 'orders' || activeTab === 'invoices' || activeTab === 'billing'
+                    ['products', 'add-product', 'orders', 'invoices', 'billing', 'transactions'].includes(activeTab)
                       ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
                   }`}
@@ -615,7 +708,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   )}
                 </button>
 
-                {!compact && (openMenuGroup === 'ecommerce' || activeTab === 'products' || activeTab === 'add-product' || activeTab === 'orders' || activeTab === 'invoices' || activeTab === 'billing') && (
+                {!compact && (openMenuGroup === 'ecommerce' || ['products', 'add-product', 'orders', 'invoices', 'billing', 'transactions'].includes(activeTab)) && (
                   <div className="pl-9 pr-2 py-1 space-y-1">
                     <button
                       type="button"
@@ -671,6 +764,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       }`}
                     >
                       <span>Billing &amp; EPS</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('transactions')}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'transactions'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      <span>Transactions</span>
                     </button>
                   </div>
                 )}
@@ -733,7 +837,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     if (compact) {
                       selectTab('tasks');
                     } else {
-                      setOpenMenuGroup(openMenuGroup === 'tasks' ? 'dashboard' : 'tasks');
+                      setOpenMenuGroup(openMenuGroup === 'tasks' ? null : 'tasks');
                     }
                   }}
                   className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
@@ -817,6 +921,302 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span className="flex items-center gap-3 min-w-0">
                     <Receipt className="w-4 h-4 shrink-0" />
                     {!compact && <span className="truncate">Suppliers &amp; POs</span>}
+                  </span>
+                </button>
+
+                {/* Forms Accordion */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (compact) {
+                      selectTab('forms-elements');
+                    } else {
+                      setOpenMenuGroup(openMenuGroup === 'forms' ? null : 'forms');
+                    }
+                  }}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'forms-elements' || activeTab === 'forms-layouts'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Forms"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <FileSpreadsheet className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Forms</span>}
+                  </span>
+                  {!compact && (
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 transition-transform ${openMenuGroup === 'forms' ? 'rotate-180' : ''}`}
+                    />
+                  )}
+                </button>
+
+                {!compact && (openMenuGroup === 'forms' || activeTab === 'forms-elements' || activeTab === 'forms-layouts') && (
+                  <div className="pl-9 pr-2 py-1 space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => selectTab('forms-elements')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'forms-elements'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Form Elements
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('forms-layouts')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'forms-layouts'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Form Layouts
+                    </button>
+                  </div>
+                )}
+
+                {/* Tables Accordion */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (compact) {
+                      selectTab('tables-data');
+                    } else {
+                      setOpenMenuGroup(openMenuGroup === 'tables' ? null : 'tables');
+                    }
+                  }}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'tables-basic' || activeTab === 'tables-data'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Tables"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Table2 className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Tables</span>}
+                  </span>
+                  {!compact && (
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 transition-transform ${openMenuGroup === 'tables' ? 'rotate-180' : ''}`}
+                    />
+                  )}
+                </button>
+
+                {!compact && (openMenuGroup === 'tables' || activeTab === 'tables-basic' || activeTab === 'tables-data') && (
+                  <div className="pl-9 pr-2 py-1 space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => selectTab('tables-basic')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'tables-basic'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Basic Tables
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('tables-data')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        activeTab === 'tables-data'
+                          ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Data Tables
+                    </button>
+                  </div>
+                )}
+
+                {/* Pages Accordion */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (compact) {
+                      selectTab('page-settings');
+                    } else {
+                      setOpenMenuGroup(openMenuGroup === 'pages' ? null : 'pages');
+                    }
+                  }}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    ['page-files', 'page-settings', 'page-pricing', 'page-faq', 'page-integrations', 'page-apikeys'].includes(activeTab)
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Pages"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <FileText className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Pages</span>}
+                  </span>
+                  {!compact && (
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 transition-transform ${openMenuGroup === 'pages' ? 'rotate-180' : ''}`}
+                    />
+                  )}
+                </button>
+
+                {!compact && (openMenuGroup === 'pages' || ['page-files', 'page-settings', 'page-pricing', 'page-faq', 'page-integrations', 'page-apikeys'].includes(activeTab)) && (
+                  <div className="pl-9 pr-2 py-1 space-y-1">
+                    {([
+                      ['page-files', 'File Manager'],
+                      ['page-settings', 'Settings'],
+                      ['page-pricing', 'Pricing Tables'],
+                      ['page-faq', 'FAQs'],
+                      ['page-integrations', 'Integrations'],
+                      ['page-apikeys', 'API Keys']
+                    ] as [AdminTab, string][]).map(([tabId, label]) => (
+                      <button
+                        key={tabId}
+                        type="button"
+                        onClick={() => selectTab(tabId)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === tabId
+                            ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Group: Support */}
+            <div>
+              {!compact && (
+                <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                  Support
+                </p>
+              )}
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => selectTab('support-chat')}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'support-chat'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Messages / Chat"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <MessageSquare className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Chat</span>}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectTab('support-tickets')}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'support-tickets'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Support Tickets"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <LifeBuoy className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Support Tickets</span>}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectTab('support-email')}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'support-email'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Email Inbox"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Mail className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Email</span>}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Group: Others (Charts & UI Elements) */}
+            <div>
+              {!compact && (
+                <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                  Others
+                </p>
+              )}
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (compact) {
+                      selectTab('charts-line');
+                    } else {
+                      setOpenMenuGroup(openMenuGroup === 'charts' ? null : 'charts');
+                    }
+                  }}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    ['charts-line', 'charts-bar', 'charts-pie'].includes(activeTab)
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="Charts"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <PieChart className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">Charts</span>}
+                  </span>
+                  {!compact && (
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 transition-transform ${openMenuGroup === 'charts' ? 'rotate-180' : ''}`}
+                    />
+                  )}
+                </button>
+
+                {!compact && (openMenuGroup === 'charts' || ['charts-line', 'charts-bar', 'charts-pie'].includes(activeTab)) && (
+                  <div className="pl-9 pr-2 py-1 space-y-1">
+                    {([
+                      ['charts-line', 'Line Chart'],
+                      ['charts-bar', 'Bar Chart'],
+                      ['charts-pie', 'Pie Chart']
+                    ] as [AdminTab, string][]).map(([tabId, label]) => (
+                      <button
+                        key={tabId}
+                        type="button"
+                        onClick={() => selectTab(tabId)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          activeTab === tabId
+                            ? 'bg-[#ECF3FF]/70 text-[#465FFF] font-semibold dark:bg-[#465FFF]/10 dark:text-[#7592FF]'
+                            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => selectTab('ui-elements')}
+                  className={`w-full flex items-center ${compact ? 'justify-center px-2' : 'justify-between px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === 'ui-elements'
+                      ? 'bg-[#ECF3FF] text-[#465FFF] dark:bg-[#465FFF]/15 dark:text-[#7592FF]'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+                  }`}
+                  title="UI Elements"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Blocks className="w-4 h-4 shrink-0" />
+                    {!compact && <span className="truncate">UI Elements</span>}
                   </span>
                 </button>
               </div>
@@ -1168,12 +1568,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {/* Live Search Results Popover */}
                 {searchQueryTrimmed && (
                   <div className="absolute left-0 right-0 mt-1.5 rounded-xl border border-gray-200 bg-white p-2 shadow-xl z-40 dark:border-gray-700 dark:bg-gray-900">
-                    {quickProductMatches.length === 0 && quickOrderMatches.length === 0 ? (
+                    {quickPageMatches.length === 0 && quickProductMatches.length === 0 && quickOrderMatches.length === 0 ? (
                       <p className="px-3 py-2 text-xs text-gray-500">
-                        No products or orders match &quot;{globalSearch}&quot;.
+                        No pages, products, or orders match &quot;{globalSearch}&quot;.
                       </p>
                     ) : (
                       <div className="space-y-2 text-xs">
+                        {quickPageMatches.length > 0 && (
+                          <div>
+                            <p className="px-2 py-1 text-[10px] font-semibold uppercase text-gray-400">
+                              Admin Modules &amp; Pages
+                            </p>
+                            {quickPageMatches.map(([tabId, label]) => (
+                              <button
+                                key={tabId}
+                                type="button"
+                                onClick={() => {
+                                  setGlobalSearch('');
+                                  selectTab(tabId);
+                                }}
+                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-left cursor-pointer"
+                              >
+                                <span className="font-medium text-gray-800 dark:text-gray-200">
+                                  {label}
+                                </span>
+                                <span className="text-[11px] text-[#465FFF] shrink-0 ml-2">Jump</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         {quickProductMatches.length > 0 && (
                           <div>
                             <p className="px-2 py-1 text-[10px] font-semibold uppercase text-gray-400">
@@ -1243,6 +1666,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 aria-label="Toggle search bar"
               >
                 <Search className="w-4 h-4" />
+              </button>
+
+              {/* Fullscreen Toggle */}
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="hidden sm:flex w-10 h-10 rounded-full border border-gray-200 dark:border-gray-800 items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                aria-label="Toggle fullscreen workspace"
+                title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
 
               {/* Theme Switcher */}
@@ -1565,6 +1999,96 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <PersonalSecurityPanel initialSection="mfa" />
                 </div>
               )}
+
+              {/* TAILADMIN EXTENDED DASHBOARDS & LEDGER */}
+              {activeTab === 'marketing' && (
+                <MarketingDashboardView
+                  products={products}
+                  orders={orders}
+                  coupons={coupons}
+                  onEditProduct={handleOpenEditProduct}
+                  onToggleCoupon={toggleCouponStatus}
+                />
+              )}
+              {activeTab === 'crm' && (
+                <CrmDashboardView
+                  orders={orders}
+                  bids={bids}
+                  onNavigateBids={() => selectTab('bids')}
+                  onPrintInvoice={onPrintInvoice}
+                />
+              )}
+              {activeTab === 'logistics' && (
+                <LogisticsDashboardView
+                  orders={orders}
+                  onPrintInvoice={onPrintInvoice}
+                  onUpdateStatus={updateOrderStatus}
+                />
+              )}
+              {activeTab === 'transactions' && (
+                <TransactionsLedgerView
+                  orders={orders}
+                  onPrintInvoice={onPrintInvoice}
+                  onExportCsv={() =>
+                    downloadCsvFile(
+                      exportSalesCsv(),
+                      `TheSteps_Transactions_${new Date().toISOString().split('T')[0]}.csv`
+                    )
+                  }
+                />
+              )}
+
+              {/* TAILADMIN SUPPORT & COLLABORATION APPS */}
+              {activeTab === 'support-chat' && <SupportChatView />}
+              {activeTab === 'support-tickets' && <SupportTicketsView />}
+              {activeTab === 'support-email' && <EmailInboxView />}
+              {activeTab === 'page-files' && (
+                <FileManagerView
+                  products={products}
+                  orders={orders}
+                  onPrintInvoice={onPrintInvoice}
+                />
+              )}
+
+              {/* TAILADMIN FORMS, TABLES, CHARTS, UI ELEMENTS & PAGES */}
+              {activeTab === 'forms-elements' && <FormsElementsView />}
+              {activeTab === 'forms-layouts' && <FormsLayoutsView />}
+              {activeTab === 'tables-basic' && (
+                <TablesBasicView products={products} orders={orders} />
+              )}
+              {activeTab === 'tables-data' && (
+                <DataTablesView
+                  products={products}
+                  orders={orders}
+                  onExportCsv={() =>
+                    downloadCsvFile(
+                      exportSalesCsv(),
+                      `TheSteps_DataTable_${new Date().toISOString().split('T')[0]}.csv`
+                    )
+                  }
+                />
+              )}
+              {(activeTab === 'charts-line' ||
+                activeTab === 'charts-bar' ||
+                activeTab === 'charts-pie') && (
+                <ChartsShowcaseView
+                  mode={
+                    activeTab === 'charts-line'
+                      ? 'line'
+                      : activeTab === 'charts-bar'
+                      ? 'bar'
+                      : 'pie'
+                  }
+                  orders={orders}
+                  products={products}
+                />
+              )}
+              {activeTab === 'ui-elements' && <UiElementsShowcaseView />}
+              {activeTab === 'page-settings' && <SettingsPageView />}
+              {activeTab === 'page-pricing' && <PricingPageView />}
+              {activeTab === 'page-faq' && <FaqPageView />}
+              {activeTab === 'page-integrations' && <IntegrationsPageView />}
+              {activeTab === 'page-apikeys' && <ApiKeysPageView />}
 
               {/* SECURITY MODULE VIEWS */}
               {activeTab === 'users-all' && <UserManagementView presetFilter="all" />}
